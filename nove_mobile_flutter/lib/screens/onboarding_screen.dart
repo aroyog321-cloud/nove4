@@ -1,7 +1,16 @@
+import 'dart:ui'; // for ImageFilter (glassmorphism)
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/tokens.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OnboardingScreen
+// Updated with:
+//   • Frosted glass icon circles  (glass3d.dev)
+//   • Gradient "Get Started" CTA  (cta.gallery)
+//   • Spring page transition       (60fps.design)
+// ─────────────────────────────────────────────────────────────────────────────
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onDone;
@@ -41,10 +50,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   IconData _getIcon(String name) {
     switch (name) {
-      case 'drafts': return Icons.drafts_outlined;
-      case 'all_out': return Icons.all_out_rounded;
+      case 'drafts':       return Icons.drafts_outlined;
+      case 'all_out':      return Icons.all_out_rounded;
       case 'lock_outline': return Icons.lock_outline_rounded;
-      default: return Icons.star_border;
+      default:             return Icons.star_border;
+    }
+  }
+
+  void _handleNext() {
+    HapticFeedback.mediumImpact();
+    if (_currentPage == _pages.length - 1) {
+      widget.onDone();
+    } else {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: NoveAnimation.smooth,
+      );
     }
   }
 
@@ -55,6 +76,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // ── Page content ───────────────────────────────────────────────
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -70,20 +92,43 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: NoveColors.cardBg(context),
-                            shape: BoxShape.circle,
-                            boxShadow: NoveShadows.cardElevated(context),
-                          ),
-                          child: Icon(
-                            _getIcon(page['icon']!), 
-                            size: 64, 
-                            color: NoveColors.terracotta
+                        // ── Glass icon circle (glass3d.dev) ───────────────
+                        ClipOval(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(
+                              sigmaX: NoveBlur.heavy,
+                              sigmaY: NoveBlur.heavy,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(36),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withValues(alpha: 0.07)
+                                    : Colors.white.withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  width: 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: NoveColors.terracotta.withValues(alpha: 0.2),
+                                    blurRadius: 30,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                _getIcon(page['icon']!),
+                                size: 64,
+                                color: NoveColors.terracotta,
+                              ),
+                            ),
                           ),
                         ),
+
                         const SizedBox(height: 64),
+
                         Text(
                           page['title']!,
                           textAlign: TextAlign.center,
@@ -109,14 +154,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-            
-            // Bottom Controls
+
+            // ── Bottom controls ────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(32, 0, 32, 48),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Page Indicators
+                  // Page dot indicators
                   Row(
                     children: List.generate(
                       _pages.length,
@@ -126,45 +171,46 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         height: 8,
                         width: _currentPage == index ? 24 : 8,
                         decoration: BoxDecoration(
-                          color: _currentPage == index 
-                              ? NoveColors.terracotta 
+                          color: _currentPage == index
+                              ? NoveColors.terracotta
                               : NoveColors.warmGray300,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                     ),
                   ),
-                  
-                  // Next / Get Started Button
-                  ElevatedButton(
-                    onPressed: () {
-                      HapticFeedback.mediumImpact();
-                      if (_currentPage == _pages.length - 1) {
-                        widget.onDone();
-                      } else {
-                        _pageController.nextPage(
-                          duration: const Duration(milliseconds: 300), // FIXED
-                        curve: NoveAnimation.smooth,
-                          
-                            
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: NoveColors.accent(context),
-                      foregroundColor: Colors.white,
+
+                  // ── Gradient CTA button (cta.gallery) ─────────────────
+                  GestureDetector(
+                    onTap: _handleNext,
+                    child: AnimatedContainer(
+                      duration: NoveAnimation.micro,
                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      elevation: 0,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            NoveColors.terracottaLight,
+                            NoveColors.terracottaDark,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: NoveShadows.ctaGlow(),
+                      ),
+                      child: Text(
+                        _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
+                        style: GoogleFonts.dmSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
-                      style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  )
+                  ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),

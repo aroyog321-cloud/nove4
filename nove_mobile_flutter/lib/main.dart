@@ -81,8 +81,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
   String _content = "";
   String _id = "";
   
-  double _overlayWidth = 300.0;
-  double _overlayHeight = 300.0;
+  double _overlayWidth = 180.0;
+  double _overlayHeight = 180.0;
 
   StreamSubscription? _overlaySubscription;
 
@@ -100,8 +100,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
             _content = data['content'];
             _bgColor = Color(data['color']);
             _isBubble = data['isBubble'];
-            _overlayWidth = 300.0; 
-            _overlayHeight = 300.0;
+            _overlayWidth = 180.0; 
+            _overlayHeight = 180.0;
           });
           
           if (_isBubble) {
@@ -253,8 +253,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                           GestureDetector(
                             onPanUpdate: (details) {
                               setState(() {
-                                _overlayWidth = (_overlayWidth + details.delta.dx).clamp(250.0, 600.0);
-                                _overlayHeight = (_overlayHeight + details.delta.dy).clamp(250.0, 800.0);
+                                _overlayWidth = (_overlayWidth + details.delta.dx).clamp(160.0, 600.0);
+                                _overlayHeight = (_overlayHeight + details.delta.dy).clamp(160.0, 800.0);
                               });
                               FlutterOverlayWindow.resizeOverlay(_overlayWidth.toInt(), _overlayHeight.toInt(), true);
                             },
@@ -308,18 +308,24 @@ final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((r
 });
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system) {
+  ThemeModeNotifier() : super(ThemeMode.light) {
     _load();
   }
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString('theme_mode') ?? 'system';
-    state = saved == 'dark'
-        ? ThemeMode.dark
-        : saved == 'light'
-            ? ThemeMode.light
-            : ThemeMode.system;
+    final saved = prefs.getString('theme_mode');
+    
+    if (saved == null) {
+      // First install: default to Light as requested
+      state = ThemeMode.light;
+    } else {
+      state = saved == 'dark'
+          ? ThemeMode.dark
+          : saved == 'light'
+              ? ThemeMode.light
+              : ThemeMode.system;
+    }
   }
 
   Future<void> setMode(ThemeMode mode) async {
@@ -488,13 +494,25 @@ class _AppEntry extends StatefulWidget {
   State<_AppEntry> createState() => _AppEntryState();
 }
 
-class _AppEntryState extends State<_AppEntry> {
+class _AppEntryState extends State<_AppEntry> with WidgetsBindingObserver {
   bool? _showOnboarding;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkOnboarding();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    setState(() {});
   }
 
   Future<void> _checkOnboarding() async {
@@ -577,6 +595,15 @@ class _NoveShellState extends ConsumerState<NoveShell> with WidgetsBindingObserv
           ref.read(poppedOutNoteProvider.notifier).state = null;
         }
       } catch (_) {}
+    }
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    // Force a rebuild when the system theme changes
+    if (ref.read(themeModeProvider) == ThemeMode.system) {
+      setState(() {});
     }
   }
 

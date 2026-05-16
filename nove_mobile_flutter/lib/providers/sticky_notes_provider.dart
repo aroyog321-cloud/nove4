@@ -35,7 +35,13 @@ class StickyNotesNotifier extends StateNotifier<List<StickyNote>> {
     await prefs.setString(_key, jsonEncode(state.map((n) => n.toMap()).toList()));
   }
 
-  Future<void> createNote(String title, StickyColor color, [String content = '']) async {
+  Future<void> createNote(
+    String title,
+    StickyColor color, [
+    String content = '',
+    double x = 0,
+    double y = 0,
+  ]) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final note = StickyNote(
       id: 'sticky_${now}_${_uuid.v4().substring(0, 6)}',
@@ -43,6 +49,8 @@ class StickyNotesNotifier extends StateNotifier<List<StickyNote>> {
       content: content,
       color: color,
       createdAt: now,
+      x: x,
+      y: y,
     );
     state = [note, ...state];
     await _save();

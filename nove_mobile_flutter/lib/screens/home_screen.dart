@@ -262,7 +262,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             Expanded(child: _BentoStat(label: 'Notes', value: '${notesState.notes.length}', icon: Icons.description_outlined)),
                             const SizedBox(width: 12),
-                            Expanded(child: _BentoStat(label: 'Streak', value: '$_streak', icon: Icons.local_fire_department_rounded)),
+                            Expanded(child: _BentoStat(label: 'Streak', value: '$_streak', icon: Icons.local_fire_department_rounded, isHighlight: true)),
                           ],
                         ),
                       ],
@@ -302,29 +302,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final note = filteredNotes[index];
-                    return NoteCard(
-                      note: note,
-                      onTap: () => _isSelectionMode ? _toggleNoteSelection(note.id) : _openNote(note),
-                      onDelete: () {
-                        final noteId = note.id;
-                        ref.read(notesProvider.notifier).deleteNote(noteId);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Note moved to Trash'),
-                            action: SnackBarAction(
-                              label: 'Undo',
-                              onPressed: () => ref.read(notesProvider.notifier).restoreNote(noteId),
+                    return TweenAnimationBuilder<double>(
+                      key: ValueKey('anim_${note.id}'),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: Duration(milliseconds: 250 + (index * 40).clamp(0, 400)),
+                      curve: NoveAnimation.snappy,
+                      builder: (context, value, child) => Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
+                      ),
+                      child: NoteCard(
+                        note: note,
+                        onTap: () => _isSelectionMode ? _toggleNoteSelection(note.id) : _openNote(note),
+                        onDelete: () {
+                          final noteId = note.id;
+                          ref.read(notesProvider.notifier).deleteNote(noteId);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Note moved to Trash'),
+                              action: SnackBarAction(
+                                label: 'Undo',
+                                onPressed: () => ref.read(notesProvider.notifier).restoreNote(noteId),
+                              ),
+                              duration: const Duration(seconds: 4),
                             ),
-                            duration: const Duration(seconds: 4),
-                          ),
-                        );
-                      },
-                      onPin: () => ref.read(notesProvider.notifier).togglePin(note.id),
-                      onFavorite: () => ref.read(notesProvider.notifier).toggleFavorite(note.id),
-                      onColorChange: (color) => ref.read(notesProvider.notifier).updateNote(note.id, colorLabel: color),
-                      isSelected: _selectedNoteIds.contains(note.id),
-                      onLongPress: () => _toggleNoteSelection(note.id),
-                      searchQuery: _searchController.text,
+                          );
+                        },
+                        onPin: () => ref.read(notesProvider.notifier).togglePin(note.id),
+                        onFavorite: () => ref.read(notesProvider.notifier).toggleFavorite(note.id),
+                        onColorChange: (color) => ref.read(notesProvider.notifier).updateNote(note.id, colorLabel: color),
+                        isSelected: _selectedNoteIds.contains(note.id),
+                        onLongPress: () => _toggleNoteSelection(note.id),
+                        searchQuery: _searchController.text,
+                      ),
                     );
                   },
                   childCount: filteredNotes.length,
@@ -472,11 +482,78 @@ class TagFilterBar extends StatelessWidget {
 }
 
 enum EmptyStateType { onboarding, category, search }
+
 class EnhancedEmptyState extends StatelessWidget {
   final EmptyStateType state;
   final VoidCallback onAction;
   const EnhancedEmptyState({super.key, required this.state, required this.onAction});
-  @override Widget build(BuildContext context) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(state == EmptyStateType.search ? Icons.search_off : Icons.edit_document, size: 64, color: NoveColors.terracottaLight), const SizedBox(height: 16), Text(state == EmptyStateType.search ? 'No matches' : 'Start writing', style: NoveTypography.h2(context)), const SizedBox(height: 32), ElevatedButton(onPressed: onAction, child: const Text('New Note'))]));
+
+  @override
+  Widget build(BuildContext context) {
+    final isSearch = state == EmptyStateType.search;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    NoveColors.terracotta.withValues(alpha: 0.12),
+                    NoveColors.terracotta.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+              child: Center(
+                child: Icon(
+                  isSearch ? Icons.search_off_rounded : Icons.edit_note_rounded,
+                  size: 56,
+                  color: NoveColors.terracottaLight,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              isSearch ? 'No matches found' : 'Start writing',
+              style: NoveTypography.h2(context),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isSearch
+                  ? 'Try a different search term'
+                  : 'Tap below to create your first note',
+              style: NoveTypography.bodySm(context),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: NoveShadows.ctaGlow(),
+              ),
+              child: ElevatedButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('New Note'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: NoveColors.terracotta,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: const StadiumBorder(),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class NoteCard extends StatefulWidget {
@@ -532,66 +609,111 @@ class _NoteCardState extends State<NoteCard> {
         child: Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            color: widget.isSelected ? NoveColors.accent(context).withValues(alpha: 0.1) : NoveColors.cardBg(context), 
-            borderRadius: BorderRadius.circular(NoveRadii.xl), 
-            border: Border.all(color: widget.isSelected ? NoveColors.accent(context) : NoveColors.cardBorder(context), width: widget.isSelected ? 2 : 1),
+            color: widget.isSelected
+                ? NoveColors.accent(context).withValues(alpha: 0.1)
+                : NoveColors.cardBg(context),
+            borderRadius: BorderRadius.circular(NoveRadii.xl),
+            border: Border.all(
+              color: widget.isSelected
+                  ? NoveColors.accent(context)
+                  : NoveColors.cardBorder(context),
+              width: widget.isSelected ? 2 : 1,
+            ),
             boxShadow: NoveShadows.cardLight(context),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20), 
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, 
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                  children: [
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(NoveRadii.xl - 1),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!widget.isSelected)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getLeftBorderColor(widget.note).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(NoveRadii.full),
-                      ),
-                      child: Text(
-                        widget.note.category?.toUpperCase() ?? 'GENERAL',
-                        style: NoveTypography.label(context).copyWith(color: _getLeftBorderColor(widget.note), fontWeight: FontWeight.bold),
+                      width: 3,
+                      color: _getLeftBorderColor(widget.note),
+                    ),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          widget.isSelected ? 20 : 17, 20, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getLeftBorderColor(widget.note).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(NoveRadii.full),
+                                ),
+                                child: Text(
+                                  widget.note.category?.toUpperCase() ?? 'GENERAL',
+                                  style: NoveTypography.label(context).copyWith(
+                                      color: _getLeftBorderColor(widget.note),
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              if (widget.note.isPinned)
+                                Icon(Icons.push_pin_rounded,
+                                    size: 16, color: NoveColors.accent(context)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _HighlightedText(
+                            text: widget.note.title.isNotEmpty
+                                ? widget.note.title
+                                : 'Untitled',
+                            query: widget.searchQuery,
+                            style: NoveTypography.h3(context)
+                                .copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          _HighlightedText(
+                            text: _cleanPreview(widget.note.content),
+                            query: widget.searchQuery,
+                            style: NoveTypography.body(context).copyWith(
+                                color: NoveColors.secondaryText(context)),
+                            maxLines: 2,
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Icon(Icons.access_time_rounded,
+                                  size: 12, color: NoveColors.mutedText(context)),
+                              const SizedBox(width: 4),
+                              Text(
+                                DateFormat('MMM d').format(
+                                    DateTime.fromMillisecondsSinceEpoch(
+                                        widget.note.updatedAt)),
+                                style: NoveTypography.caption(context),
+                              ),
+                              const Spacer(),
+                              if (widget.note.tags.isNotEmpty)
+                                Row(
+                                  children: widget.note.tags
+                                      .take(2)
+                                      .map((t) => Padding(
+                                            padding:
+                                                const EdgeInsets.only(left: 8),
+                                            child: Text('#$t',
+                                                style: NoveTypography.caption(
+                                                        context)
+                                                    .copyWith(
+                                                        color: NoveColors
+                                                            .accent(context))),
+                                          ))
+                                      .toList(),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    if (widget.note.isPinned) Icon(Icons.push_pin_rounded, size: 16, color: NoveColors.accent(context)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _HighlightedText(
-                  text: widget.note.title.isNotEmpty ? widget.note.title : 'Untitled', 
-                  query: widget.searchQuery, 
-                  style: NoveTypography.h3(context).copyWith(fontWeight: FontWeight.bold)
-                ),
-                const SizedBox(height: 6),
-                _HighlightedText(
-                  text: _cleanPreview(widget.note.content), 
-                  query: widget.searchQuery, 
-                  style: NoveTypography.body(context).copyWith(color: NoveColors.secondaryText(context)), 
-                  maxLines: 2
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.access_time_rounded, size: 12, color: NoveColors.mutedText(context)),
-                    const SizedBox(width: 4),
-                    Text(
-                      DateFormat('MMM d').format(DateTime.fromMillisecondsSinceEpoch(widget.note.updatedAt)),
-                      style: NoveTypography.caption(context),
-                    ),
-                    const Spacer(),
-                    if (widget.note.tags.isNotEmpty)
-                      Row(
-                        children: widget.note.tags.take(2).map((t) => Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: Text('#$t', style: NoveTypography.caption(context).copyWith(color: NoveColors.accent(context))),
-                        )).toList(),
-                      ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -604,27 +726,47 @@ class _BentoStat extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  const _BentoStat({required this.label, required this.value, required this.icon});
-  @override Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: NoveColors.bg(context),
-      borderRadius: BorderRadius.circular(NoveRadii.xl),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, size: 20, color: NoveColors.accent(context)),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: NoveTypography.h3(context).copyWith(fontWeight: FontWeight.bold)),
-            Text(label, style: NoveTypography.caption(context)),
-          ],
-        ),
-      ],
-    ),
-  );
+  final bool isHighlight;
+  const _BentoStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.isHighlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final highlightColor = isHighlight ? NoveColors.amberDark : NoveColors.accent(context);
+    return AnimatedContainer(
+      duration: NoveAnimation.fast,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isHighlight
+            ? NoveColors.amber.withValues(alpha: 0.12)
+            : NoveColors.bg(context),
+        borderRadius: BorderRadius.circular(NoveRadii.xl),
+        border: isHighlight
+            ? Border.all(color: NoveColors.amber.withValues(alpha: 0.35), width: 1)
+            : null,
+        boxShadow: isHighlight ? NoveShadows.amberGlow() : null,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: highlightColor),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value,
+                  style: NoveTypography.h3(context)
+                      .copyWith(fontWeight: FontWeight.bold, color: highlightColor)),
+              Text(label, style: NoveTypography.caption(context)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _HighlightedText extends StatelessWidget {
@@ -654,5 +796,23 @@ class EnhancedFAB extends StatelessWidget {
   final ScrollController scrollController;
   final VoidCallback onPressed;
   const EnhancedFAB({super.key, required this.scrollController, required this.onPressed});
-  @override Widget build(BuildContext context) => FloatingActionButton.extended(onPressed: onPressed, icon: const Icon(Icons.add), label: const Text('New Note'), backgroundColor: NoveColors.terracotta);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: NoveShadows.ctaGlow(),
+      ),
+      child: FloatingActionButton.extended(
+        onPressed: onPressed,
+        icon: const Icon(Icons.add),
+        label: const Text('New Note', style: TextStyle(fontWeight: FontWeight.w700)),
+        backgroundColor: NoveColors.terracotta,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+      ),
+    );
+  }
 }

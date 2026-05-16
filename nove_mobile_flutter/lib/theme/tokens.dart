@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// NOVE Mobile Design Tokens
+/// Updated with glassmorphism, 60fps animation curves, and CTA glow tokens
 class NoveColors {
   // Primary Brand Colors
   static const Color terracotta = Color(0xFFC0452A);
@@ -39,7 +40,7 @@ class NoveColors {
   static const Color warmGray800 = Color(0xFF3D3630);
   static const Color warmGray900 = Color(0xFF242018);
 
-  // Base Dark Theme — fully active
+  // Base Dark Theme
   static const Color deepDark = Color(0xFF1A1714);
   static const Color cardDark = Color(0xFF242018);
   static const Color cardDarkLight = Color(0xFF2F2A22);
@@ -47,7 +48,7 @@ class NoveColors {
   static const Color glassDark = Color(0x331A1714);
   static const Color glassLight = Color(0x33FFFFFF);
 
-  // Sticky Note Colors — more vibrant and saturated
+  // Sticky Note Colors
   static const Color stickyYellow = Color(0xFFFDD835);
   static const Color stickyPink = Color(0xFFF48FB1);
   static const Color stickyGreen = Color(0xFF81C784);
@@ -105,6 +106,49 @@ class NoveColors {
       Theme.of(context).brightness == Brightness.dark ? terracottaLight : terracotta;
 }
 
+/// Glassmorphism surface tokens — single source of truth for all glass effects.
+/// Inspired by glass3d.dev and GlowUI design system.
+class NoveGlass {
+  // Light theme glass surfaces
+  static const Color lightSurface = Color(0xC7FFFFFF); // 78% white
+  static const Color lightBorder  = Color(0x99FFFFFF); // 60% white
+  static const Color lightShadow  = Color(0x0F000000); // 6% black
+
+  // Dark theme glass surfaces
+  static const Color darkSurface = Color(0xB81A1714);  // 72% deep dark
+  static const Color darkBorder  = Color(0x14FFFFFF);  // 8% white
+  static const Color darkShadow  = Color(0x59000000);  // 35% black
+
+  static Color surface(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? darkSurface
+          : lightSurface;
+
+  static Color border(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? darkBorder
+          : lightBorder;
+
+  static List<BoxShadow> shadow(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return [
+      BoxShadow(
+        color: isDark ? darkShadow : lightShadow,
+        blurRadius: 20,
+        offset: const Offset(0, 4),
+      ),
+      BoxShadow(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.03)
+            : Colors.white.withValues(alpha: 0.9),
+        blurRadius: 0,
+        offset: const Offset(0, 1),
+        spreadRadius: 0,
+      ),
+    ];
+  }
+}
+
 class NoveRadii {
   static const double none = 0;
   static const double xs = 8;
@@ -123,6 +167,9 @@ class NoveBlur {
   static const double lg = 12;
   static const double xl = 16;
   static const double xxl = 24;
+  // NEW — named semantic blur values for glass effects
+  static const double card  = 18.0; // standard glass card blur (glass3d.dev)
+  static const double heavy = 28.0; // header / modal heavy blur
 }
 
 class NoveSpacing {
@@ -141,16 +188,14 @@ class NoveTypography {
   static TextStyle dmsans({TextStyle? style}) => GoogleFonts.dmSans(textStyle: style);
   static TextStyle caveat({TextStyle? style}) => GoogleFonts.caveat(textStyle: style);
 
-  // Structured UI/Editor fonts
   static TextStyle editorFont({TextStyle? style}) => GoogleFonts.lora(textStyle: style, height: 1.6);
   static TextStyle uiFont({TextStyle? style}) => GoogleFonts.dmSans(textStyle: style);
 
-  // Typography Scale (Based on Recommendations)
   static TextStyle display(BuildContext context) => lora(style: TextStyle(fontSize: 40, height: 1.2, fontWeight: FontWeight.w700, color: NoveColors.primaryText(context)));
   static TextStyle h1(BuildContext context) => lora(style: TextStyle(fontSize: 30, height: 1.3, fontWeight: FontWeight.w600, color: NoveColors.primaryText(context), letterSpacing: -0.5));
   static TextStyle h2(BuildContext context) => lora(style: TextStyle(fontSize: 24, height: 1.3, fontWeight: FontWeight.w600, color: NoveColors.primaryText(context), letterSpacing: -0.3));
   static TextStyle h3(BuildContext context) => lora(style: TextStyle(fontSize: 18, height: 1.4, fontWeight: FontWeight.w500, color: NoveColors.primaryText(context), letterSpacing: 0));
-  
+
   static TextStyle bodyLg(BuildContext context) => dmsans(style: TextStyle(fontSize: 16, height: 1.6, fontWeight: FontWeight.w400, color: NoveColors.primaryText(context)));
   static TextStyle body(BuildContext context) => dmsans(style: TextStyle(fontSize: 14, height: 1.6, fontWeight: FontWeight.w400, color: NoveColors.primaryText(context)));
   static TextStyle bodySm(BuildContext context) => dmsans(style: TextStyle(fontSize: 12, height: 1.5, fontWeight: FontWeight.w400, color: NoveColors.secondaryText(context)));
@@ -179,18 +224,24 @@ class NoveTypography {
 
 class NoveAnimation {
   // Durations
-  static const Duration instant = Duration(milliseconds: 100);
-  static const Duration fast = Duration(milliseconds: 200);
-  static const Duration normal = Duration(milliseconds: 350);
-  static const Duration slow = Duration(milliseconds: 500);
-  static const Duration verySlow = Duration(milliseconds: 800);
-  static const Duration entrance = Duration(milliseconds: 600);
+  static const Duration instant   = Duration(milliseconds: 100);
+  static const Duration fast      = Duration(milliseconds: 200);
+  static const Duration normal    = Duration(milliseconds: 350);
+  static const Duration slow      = Duration(milliseconds: 500);
+  static const Duration verySlow  = Duration(milliseconds: 800);
+  static const Duration entrance  = Duration(milliseconds: 600);
+  // NEW — semantic durations for 60fps patterns (60fps.design)
+  static const Duration micro     = Duration(milliseconds: 120); // press state feedback
+  static const Duration card      = Duration(milliseconds: 380); // card entrance slide
 
   // Curves
-  static const Curve snappy = Curves.easeOutCubic;
-  static const Curve smooth = Curves.easeInOutCubic;
-  static const Curve bounce = Curves.elasticOut;
+  static const Curve snappy    = Curves.easeOutCubic;
+  static const Curve smooth    = Curves.easeInOutCubic;
+  static const Curve bounce    = Curves.elasticOut;
   static const Curve decelerate = Curves.decelerate;
+  // NEW — spring physics curves for natural motion (60fps.design)
+  static const Curve spring    = Curves.easeOutBack;    // scale-in effects, FAB appear
+  static const Curve snap      = Curves.easeOutExpo;   // drawer/sheet open
 }
 
 class NoveShadows {
@@ -261,6 +312,20 @@ class NoveShadows {
           ];
   }
 
+  /// NEW — terracotta CTA glow (cta.gallery style)
+  static List<BoxShadow> ctaGlow() => [
+        BoxShadow(
+          color: NoveColors.terracotta.withValues(alpha: 0.45),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
+        ),
+        BoxShadow(
+          color: NoveColors.terracotta.withValues(alpha: 0.2),
+          blurRadius: 32,
+          offset: const Offset(0, 12),
+        ),
+      ];
+
   static List<BoxShadow> amberGlow() => [
         BoxShadow(
           color: NoveColors.amber.withValues(alpha: 0.3),
@@ -311,7 +376,6 @@ class NoveShadows {
 }
 
 /// Single source of truth for the 6-color note label palette.
-/// Used by both EditorScreen and NoteCard context menu.
 const kNoteColorLabels = [
   '#C0452A',
   '#F5C842',

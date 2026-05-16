@@ -229,23 +229,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   iconColor: const Color(0xFF534AB7),
                   title: 'Dark mode',
                   subtitle: 'Follows system by default',
-                  trailing: DropdownButton<ThemeMode>(
-                    value: themeMode,
-                    underline: const SizedBox.shrink(),
-                    isDense: true,
-                    style: GoogleFonts.dmSans(fontSize: 12, color: NoveColors.secondaryText(context)),
-                    dropdownColor: NoveColors.cardBg(context),
-                    items: const [
-                      DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
-                      DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
-                      DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
+                  trailing: SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ThemeMode.system,
+                        icon: Icon(Icons.brightness_auto_rounded, size: 16),
+                        tooltip: 'Automatic',
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.light,
+                        icon: Icon(Icons.light_mode_rounded, size: 16),
+                        tooltip: 'Light',
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.dark,
+                        icon: Icon(Icons.dark_mode_rounded, size: 16),
+                        tooltip: 'Dark',
+                      ),
                     ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        HapticFeedback.lightImpact();
-                        ref.read(themeModeProvider.notifier).setMode(val);
-                      }
+                    selected: {themeMode},
+                    onSelectionChanged: (val) {
+                      HapticFeedback.lightImpact();
+                      ref.read(themeModeProvider.notifier).setMode(val.first);
                     },
+                    style: SegmentedButton.styleFrom(
+                      selectedBackgroundColor: NoveColors.accent(context),
+                      selectedForegroundColor: Colors.white,
+                      foregroundColor: NoveColors.secondaryText(context),
+                      backgroundColor: NoveColors.bg(context),
+                      minimumSize: const Size(36, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
                 _Divider(isDark: isDark),
@@ -379,7 +394,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 Widget _sectionLabel(String label, {required BuildContext context, Color? color}) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 10, left: 4),
-    child: Text(label, style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5, color: color ?? NoveColors.mutedText(context))),
+    child: Row(
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.dmSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+            color: color ?? NoveColors.mutedText(context),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Divider(
+            color: (color ?? NoveColors.mutedText(context)).withValues(alpha: 0.25),
+            thickness: 0.5,
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -504,13 +538,18 @@ class _JourneyDashboard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(NoveRadii.full),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 8,
-                  backgroundColor: NoveColors.bg(context),
-                  valueColor: AlwaysStoppedAnimation<Color>(NoveColors.accent(context)),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: progress),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeOutCubic,
+                builder: (context, animVal, _) => ClipRRect(
+                  borderRadius: BorderRadius.circular(NoveRadii.full),
+                  child: LinearProgressIndicator(
+                    value: animVal,
+                    minHeight: 10,
+                    backgroundColor: NoveColors.bg(context),
+                    valueColor: AlwaysStoppedAnimation<Color>(NoveColors.accent(context)),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),

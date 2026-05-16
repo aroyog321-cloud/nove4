@@ -102,7 +102,13 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
   void _addNote() {
     final text = _inputController.text.trim();
     if (text.isNotEmpty) {
-      ref.read(stickyNotesProvider.notifier).createNote(text, _selectedColor);
+      final screenWidth = MediaQuery.of(context).size.width;
+      // Compute position BEFORE creating — provider state doesn't yet
+      // contain the new note, so the collision check is accurate.
+      final pos = _getUnoccupiedGridPosition(screenWidth);
+      ref
+          .read(stickyNotesProvider.notifier)
+          .createNote(text, _selectedColor, '', pos.dx, pos.dy);
       _inputController.clear();
       HapticFeedback.mediumImpact();
     }
@@ -170,7 +176,7 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
         'id': note.id,
         'title': note.title,
         'content': note.content,
-        'color': _getNoteColor(note.color).value,
+        'color': _getNoteColor(note.color).toARGB32(),
         'isBubble': true,
       });
 
@@ -225,45 +231,53 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
   Offset _getGridPosition(int index, double screenWidth) {
     const double cardWidth = 160.0;
     const double cardHeight = 184.0;
-    const double padding = 24.0;
-    const double spacing = 16.0;
+    const double gapX = 16.0; // Increased gap slightly for better breathing room
+    const double gapY = 20.0;
+    const double minPadding = 16.0;
 
-    final double availableWidth = screenWidth - (padding * 2);
-    int columns = (availableWidth + spacing) ~/ (cardWidth + spacing);
+    final double availableWidth = screenWidth - (minPadding * 2);
+    int columns = ((availableWidth + gapX) / (cardWidth + gapX)).floor();
     if (columns < 1) columns = 1;
 
-    final double colSpacing = columns > 1
-        ? (availableWidth - (columns * cardWidth)) / (columns - 1)
-        : 0;
+    // Calculate total width of the grid to center it
+    final double totalGridWidth = (columns * cardWidth) + ((columns - 1) * gapX);
+    final double horizontalOffset = (screenWidth - totalGridWidth) / 2;
 
     final int col = index % columns;
     final int row = index ~/ columns;
 
-    final double x = padding + (col * (cardWidth + colSpacing));
-    final double y = padding + (row * (cardHeight + spacing));
+    // Minimal top padding since the SingleChildScrollView already has top: 130
+    const double topPadding = 16.0;
 
-    return _snapToGrid(Offset(x, y));
+    final double x = horizontalOffset + col * (cardWidth + gapX);
+    final double y = topPadding + row * (cardHeight + gapY);
+
+    return Offset(x, y);
   }
 
   void _arrangeNotes(List<StickyNote> visibleNotes, double screenWidth) {
     HapticFeedback.mediumImpact();
-    setState(() {
-      for (int i = 0; i < visibleNotes.length; i++) {
-        final pos = _getGridPosition(i, screenWidth);
-        ref
-            .read(stickyNotesProvider.notifier)
-            .updateNotePosition(visibleNotes[i].id, pos.dx, pos.dy);
-      }
-    });
+    for (int i = 0; i < visibleNotes.length; i++) {
+      final pos = _getGridPosition(i, screenWidth);
+      ref
+          .read(stickyNotesProvider.notifier)
+          .updateNotePosition(visibleNotes[i].id, pos.dx, pos.dy);
+    }
   }
 
-  Offset _getUnoccupiedGridPosition(double screenWidth) {
+  // Takes an explicit [existing] list so the caller can pass the current
+  // state snapshot — avoids stale reads and works correctly before the
+  // new note has been added to the provider.
+  Offset _getUnoccupiedGridPosition(
+    double screenWidth, [
+    List<StickyNote>? existing,
+  ]) {
+    final List<StickyNote> notes = existing ?? ref.read(stickyNotesProvider);
     for (int i = 0; i < 1000; i++) {
       final pos = _getGridPosition(i, screenWidth);
       bool occupied = false;
-      for (final existingNote in ref.read(stickyNotesProvider)) {
-        if ((existingNote.x - pos.dx).abs() < 20 &&
-            (existingNote.y - pos.dy).abs() < 20) {
+      for (final n in notes) {
+        if ((n.x - pos.dx).abs() < 8 && (n.y - pos.dy).abs() < 8) {
           occupied = true;
           break;
         }
@@ -279,13 +293,12 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
     final poppedNote = ref.watch(poppedOutNoteProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final notifier = ref.read(stickyNotesProvider.notifier);
     final visibleNotes =
         allNotes.where((n) => n.id != poppedNote?.id).toList();
     visibleNotes.sort((a, b) {
-      final aPinned =
-          ref.read(stickyNotesProvider.notifier).isPinned(a.id);
-      final bPinned =
-          ref.read(stickyNotesProvider.notifier).isPinned(b.id);
+      final aPinned = notifier.isPinned(a.id);
+      final bPinned = notifier.isPinned(b.id);
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
       return b.createdAt.compareTo(a.createdAt);
@@ -331,21 +344,26 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
                       child: Stack(
                         children: visibleNotes.asMap().entries.map((entry) {
                           final note = entry.value;
-                          final isPinned = ref
-                              .read(stickyNotesProvider.notifier)
-                              .isPinned(note.id);
+                          final isPinned = notifier.isPinned(note.id);
+                          final screenWidth = MediaQuery.of(context).size.width;
 
-                          final screenWidth =
-                              MediaQuery.of(context).size.width;
+                          // Notes created via _addNote always have a position.
+                          // Legacy notes saved at (0,0) are relocated once on
+                          // the next frame; until then render at the first free
+                          // slot so they don't all pile up at the origin.
+                          Offset pos;
                           if (note.x == 0 && note.y == 0) {
-                            final pos =
-                                _getUnoccupiedGridPosition(screenWidth);
-                            Future.microtask(() => ref
-                                .read(stickyNotesProvider.notifier)
-                                .updateNotePosition(
-                                    note.id, pos.dx, pos.dy));
+                            pos = _getUnoccupiedGridPosition(
+                                screenWidth, visibleNotes);
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                notifier.updateNotePosition(
+                                    note.id, pos.dx, pos.dy);
+                              }
+                            });
+                          } else {
+                            pos = Offset(note.x, note.y);
                           }
-                          final pos = Offset(note.x, note.y);
 
                           return AnimatedPositioned(
                             duration: const Duration(milliseconds: 200),
@@ -367,9 +385,7 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
                                 onContentChanged: (newText) =>
                                     _updateNoteContent(note.id, newText),
                                 onDragUpdate: (details) {
-                                  ref
-                                      .read(stickyNotesProvider.notifier)
-                                      .updateNotePosition(
+                                  notifier.updateNotePosition(
                                     note.id,
                                     pos.dx + details.delta.dx,
                                     pos.dy + details.delta.dy,
@@ -378,10 +394,8 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
                                 onDragEnd: () {
                                   HapticFeedback.lightImpact();
                                   final snapped = _snapToGrid(pos);
-                                  ref
-                                      .read(stickyNotesProvider.notifier)
-                                      .updateNotePosition(
-                                          note.id, snapped.dx, snapped.dy);
+                                  notifier.updateNotePosition(
+                                      note.id, snapped.dx, snapped.dy);
                                 },
                               ),
                             ),
@@ -442,52 +456,78 @@ class _GlassHeader extends StatelessWidget {
   final bool isDark;
   final VoidCallback onRestore;
   final VoidCallback onArrange;
+  final int noteCount;
 
   const _GlassHeader({
     required this.isDark,
     required this.onRestore,
     required this.onArrange,
+    this.noteCount = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
 
-    // Base glass tint — warm cream in light, near-black in dark
-    final glassFill = isDark
-        ? const Color(0xFF1A1A16).withValues(alpha: 0.58)
-        : const Color(0xFFFDF9F2).withValues(alpha: 0.62);
-
-    // Top shimmer — simulates light hitting the glass surface
-    final shimmer = isDark
-        ? Colors.white.withValues(alpha: 0.05)
-        : Colors.white.withValues(alpha: 0.55);
-
-    // Glass edge border at the bottom
-    final edgeBorder = isDark
-        ? Colors.white.withValues(alpha: 0.09)
-        : Colors.white.withValues(alpha: 0.75);
-
     return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
         child: Container(
-          padding: EdgeInsets.fromLTRB(24, topPadding + 14, 20, 14),
+          padding: EdgeInsets.fromLTRB(20, topPadding + 14, 20, 18),
           decoration: BoxDecoration(
-            // Two-stop gradient: bright shimmer at top fades to solid tint
             gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [shimmer, glassFill],
-              stops: const [0.0, 0.45],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      const Color(0xFF1E1C15).withValues(alpha: 0.88),
+                      const Color(0xFF171510).withValues(alpha: 0.78),
+                    ]
+                  : [
+                      Colors.white.withValues(alpha: 0.78),
+                      const Color(0xFFFDF8F0).withValues(alpha: 0.68),
+                    ],
             ),
             border: Border(
-              bottom: BorderSide(color: edgeBorder, width: 1.0),
+              bottom: BorderSide(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : NoveColors.terracotta.withValues(alpha: 0.08),
+                width: 1.0,
+              ),
             ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // ── Terracotta icon pill ─────────────────────────────────
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [NoveColors.terracottaLight, NoveColors.terracottaDark],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: NoveColors.terracotta.withValues(alpha: 0.40),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.dashboard_customize_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+
+              const SizedBox(width: 14),
+
               // ── Title block ─────────────────────────────────────────
               Expanded(
                 child: Column(
@@ -497,31 +537,84 @@ class _GlassHeader extends StatelessWidget {
                     Text(
                       'Sticky Board',
                       style: NoveTypography.lora(
-                        style: const TextStyle(
-                          fontSize: 36,
+                        style: TextStyle(
+                          fontSize: 26,
                           fontWeight: FontWeight.bold,
                           fontStyle: FontStyle.italic,
-                          color: NoveColors.terracotta,
+                          color: isDark ? NoveColors.cream : NoveColors.warmGray900,
+                          height: 1.1,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'VISUAL BRAINSTORMING ARENA',
-                      style: NoveTypography.dmsans(
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: NoveColors.mutedText(context),
-                          letterSpacing: 2,
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        // Live dot
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: NoveColors.terracotta,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: NoveColors.terracotta.withValues(alpha: 0.55),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'BRAINSTORM ARENA',
+                          style: NoveTypography.dmsans(
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: NoveColors.mutedText(context),
+                              letterSpacing: 1.8,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
 
               const SizedBox(width: 10),
+
+              // ── Note count badge ─────────────────────────────────────
+              if (noteCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: NoveColors.terracotta.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(NoveRadii.full),
+                    border: Border.all(
+                      color: NoveColors.terracotta.withValues(alpha: 0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.sticky_note_2_rounded, size: 11, color: NoveColors.terracotta),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$noteCount',
+                        style: NoveTypography.dmsans(
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: NoveColors.terracotta,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // ── Glass icon buttons ──────────────────────────────────
               Row(
@@ -569,37 +662,43 @@ class _GlassIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pillFill = isDark
-        ? Colors.white.withValues(alpha: 0.10)
-        : Colors.white.withValues(alpha: 0.60);
-    final pillBorder = isDark
-        ? Colors.white.withValues(alpha: 0.15)
-        : Colors.white.withValues(alpha: 0.85);
-
     return Tooltip(
       message: tooltip,
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: pillFill,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: pillBorder, width: 1.0),
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                icon,
-                color: NoveColors.terracotta,
-                size: 20,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(12),
+          splashColor: NoveColors.terracotta.withValues(alpha: 0.12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.09)
+                      : Colors.white.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.14)
+                        : Colors.white.withValues(alpha: 0.90),
+                    width: 1.0,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  color: isDark ? NoveColors.cream : NoveColors.warmGray700,
+                  size: 18,
+                ),
               ),
             ),
           ),
@@ -975,84 +1074,102 @@ class _InputBar extends StatelessWidget {
       StickyColor.blue: const Color(0xFFB3E5FC),
     };
 
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-          16, 12, 16, MediaQuery.of(context).viewInsets.bottom + 90),
-      decoration: BoxDecoration(
-        color: NoveColors.cardBg(context).withValues(alpha: 0.95),
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(24)),
-        border: isDark
-            ? Border(
-                top: BorderSide(
-                    color: NoveColors.cardBorder(context), width: 1))
-            : null,
-      ),
-      child: Row(
-        children: [
-          Row(
-            children: colors.entries.map((e) {
-              return GestureDetector(
-                onTap: () => onColorChanged(e.key),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 6),
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: e.value,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: selectedColor == e.key
-                          ? NoveColors.terracotta
-                          : (isDark
-                              ? Colors.transparent
-                              : Colors.white),
-                      width: 2,
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(
+              16, 12, 16, MediaQuery.of(context).viewInsets.bottom + 90),
+          decoration: BoxDecoration(
+            color: NoveColors.cardBg(context).withValues(alpha: 0.82),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(
+              top: BorderSide(
+                color: isDark
+                    ? NoveColors.cardBorder(context)
+                    : Colors.white.withValues(alpha: 0.6),
+                width: 1,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Row(
+                children: colors.entries.map((e) {
+                  final isSelected = selectedColor == e.key;
+                  return GestureDetector(
+                    onTap: () => onColorChanged(e.key),
+                    child: AnimatedContainer(
+                      duration: NoveAnimation.fast,
+                      margin: const EdgeInsets.only(right: 6),
+                      width: isSelected ? 26 : 22,
+                      height: isSelected ? 26 : 22,
+                      decoration: BoxDecoration(
+                        color: e.value,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? NoveColors.terracotta
+                              : (isDark ? Colors.transparent : Colors.white),
+                          width: isSelected ? 2.5 : 2,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: e.value.withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                )
+                              ]
+                            : null,
+                      ),
                     ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  style: TextStyle(
+                    fontFamily: 'DMSans',
+                    fontSize: 14,
+                    color: NoveColors.primaryText(context),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Title (optional)...',
+                    hintStyle: TextStyle(color: NoveColors.mutedText(context)),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  onSubmitted: (_) => onAdd(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: NoveShadows.ctaGlow(),
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                  label: const Text(
+                    'Add',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: NoveColors.terracotta,
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    elevation: 0,
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: TextStyle(
-                fontFamily: 'DMSans',
-                fontSize: 14,
-                color: NoveColors.primaryText(context),
               ),
-              decoration: InputDecoration(
-                hintText: 'Title (optional)...',
-                hintStyle:
-                    TextStyle(color: NoveColors.mutedText(context)),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 8),
-              ),
-              onSubmitted: (_) => onAdd(),
-            ),
+            ],
           ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add, size: 18, color: Colors.white),
-            label: const Text(
-              'Add',
-              style: TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.w700),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: NoveColors.terracotta,
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
-              elevation: 0,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
