@@ -3,14 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/tokens.dart';
 
+// FIX (Bug 3): The original controller stored a BuildContext captured in initState.
+// That context can become stale after hot-reload, theme changes, or Navigator pushes,
+// leading to wrong theme colours and potential "deactivated widget" assertions.
+//
+// The correct pattern: DO NOT store BuildContext in a TextEditingController.
+// buildTextSpan() receives a fresh, valid BuildContext on every frame — use THAT one.
 class MarkdownEditingController extends TextEditingController {
-  final BuildContext context;
+  // REMOVED: final BuildContext context;
+  // The stored context was only used inside buildTextSpan(), which already receives
+  // its own `context` parameter. Storing it was redundant and harmful.
 
-  MarkdownEditingController({required this.context, super.text});
+  MarkdownEditingController({super.text});
 
   @override
   TextSpan buildTextSpan({
-    required BuildContext context,
+    required BuildContext context, // ← Always valid; use this instead of a stored one.
     TextStyle? style,
     required bool withComposing,
   }) {
@@ -20,7 +28,7 @@ class MarkdownEditingController extends TextEditingController {
 
     // A unified regex to match markdown elements.
     // 1: Image
-    // 2: Bold (**...** or __...__)
+    // 2: Bold (**...** or __...__) 
     // 4: Italic (*...* or _..._)
     // 6: Header (#...)
     // 9: Quote (> ...)
@@ -31,7 +39,7 @@ class MarkdownEditingController extends TextEditingController {
     // 21: Tag (#tag)
     // 22: Strikethrough (~~...~~)
     final regex = RegExp(
-      r'(!\[(.*?)\]\((.*?)\))|(\*\*([\s\S]*?)\*\*|__([\s\S]*?)__)|(\*([\s\S]*?)\*|_([\s\S]*?)_)|(^(#+) +(.*)$)|(^> +(.*)$)|(^(☑|☐) +(.*)$)|(^(•|-) +(.*)$)|(`([\s\S]*?)`)|(\[\[(.*?)\]\])|(#(\w+))|(~~([\s\S]*?)~~)',
+      r'(!\[(.*?)\]\((.*?)\))|(\*\*([\s\S]*?)\*\*|__([\s\S]*?)__)| (\*([\s\S]*?)\*|_([\s\S]*?)_)|(^(#+) +(.*)$)|(^> +(.*)$)|(^(☑|☐) +(.*)$)|(^(•|-) +(.*)$)|(`([\s\S]*?)`)|(\[\[(.*?)\]\])|(#(\w+))|(~~([\s\S]*?)~~)',
       multiLine: true,
     );
 
@@ -47,7 +55,7 @@ class MarkdownEditingController extends TextEditingController {
         color: NoveColors.mutedText(context).withValues(alpha: 0.2),
         fontWeight: FontWeight.normal,
         fontStyle: FontStyle.normal,
-        fontSize: 1, 
+        fontSize: 1,
         letterSpacing: -1,
       );
 
@@ -55,7 +63,7 @@ class MarkdownEditingController extends TextEditingController {
       if (match.group(1) != null) {
         final fullMatch = match.group(0)!;
         final path = match.group(3)!;
-        
+
         children.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
           child: Padding(
@@ -83,7 +91,7 @@ class MarkdownEditingController extends TextEditingController {
             ),
           ),
         ));
-        
+
         if (fullMatch.length > 1) {
           children.add(TextSpan(text: fullMatch.substring(1), style: markerStyle));
         }
@@ -111,7 +119,7 @@ class MarkdownEditingController extends TextEditingController {
         double size = 24;
         if (hashes.length == 2) size = 20;
         if (hashes.length >= 3) size = 17;
-        
+
         children.add(TextSpan(
           children: [
             TextSpan(text: hashes, style: markerStyle),
@@ -145,7 +153,7 @@ class MarkdownEditingController extends TextEditingController {
         final fullMatch = match.group(0)!;
         final isDone = match.group(16) == '☑';
         final content = match.group(17)!;
-        
+
         children.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
           child: GestureDetector(
@@ -167,12 +175,12 @@ class MarkdownEditingController extends TextEditingController {
             ),
           ),
         ));
-        
+
         final spacePart = fullMatch.substring(1, fullMatch.length - content.length);
         if (spacePart.isNotEmpty) {
           children.add(TextSpan(text: spacePart, style: markerStyle));
         }
-        
+
         children.add(TextSpan(
           text: content,
           style: baseStyle.copyWith(
@@ -185,7 +193,7 @@ class MarkdownEditingController extends TextEditingController {
       else if (match.group(18) != null) {
         final bulletStr = match.group(19)!;
         final content = match.group(20)!;
-        
+
         children.add(TextSpan(
           text: '$bulletStr ',
           style: baseStyle.copyWith(color: NoveColors.accent(context), fontWeight: FontWeight.bold),

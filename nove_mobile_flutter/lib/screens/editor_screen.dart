@@ -15,6 +15,7 @@ import '../services/export_service.dart';
 import '../services/notification_service.dart';
 import '../theme/tokens.dart';
 import '../widgets/markdown_editing_controller.dart';
+import '../services/ads_service.dart';
 
 // ─── Backward-compat shim ────────────────
 Future<List<String>> loadAllCategories() => CategoryService.loadAllCategories();
@@ -41,6 +42,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   DateTime? _reminderDate;
 
   bool _hasChanges = false;
+  bool _adShown = false; // ensures we show at most one ad per note session
   bool _isSaved = false;
   bool _focusMode = false;
   bool _typewriterMode = false;
@@ -68,7 +70,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       text: widget.note?.title == 'Untitled' ? '' : (widget.note?.title ?? ''),
     );
     _contentController = MarkdownEditingController(
-      context: context,
+      
       text: widget.note?.content ?? '',
     );
 
@@ -212,7 +214,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
 
     HapticFeedback.lightImpact();
-    if (mounted) Navigator.pop(context);
+
+    // Show interstitial when saving a NEW note (once per session)
+    if (_isNewNote && !_adShown && AdsService.isInitialized) {
+      _adShown = true;
+      AdsService.showInterstitial(
+        onComplete: () {
+          if (mounted) Navigator.pop(context);
+        },
+      );
+    } else {
+      if (mounted) Navigator.pop(context);
+    }
   }
 
   Future<bool?> _showDiscardConfirm() {

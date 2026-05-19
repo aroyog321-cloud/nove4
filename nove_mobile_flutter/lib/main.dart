@@ -17,11 +17,12 @@ import 'screens/home_screen.dart';
 import 'screens/sticky_board_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/onboarding_screen.dart';
-import 'screens/lock_screen.dart'; 
+import 'screens/lock_screen.dart';
 import 'theme/tokens.dart';
 import 'providers/sticky_notes_provider.dart';
 import 'widgets/sticky_overlay_layer.dart';
 import 'providers/app_launch_watcher.dart';
+import 'services/ads_service.dart';
 
 // ─── GLOBAL STREAM CACHES (Prevents "Bad State" Stream Errors) ─────────────
 final Stream<dynamic> sharedOverlayStream = FlutterOverlayWindow.overlayListener.asBroadcastStream();
@@ -54,7 +55,7 @@ void overlayMain() {
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
-      color: Colors.transparent, 
+      color: Colors.transparent,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.transparent,
         canvasColor: Colors.transparent,
@@ -80,7 +81,7 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
   String _title = "";
   String _content = "";
   String _id = "";
-  
+
   double _overlayWidth = 180.0;
   double _overlayHeight = 180.0;
 
@@ -100,10 +101,10 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
             _content = data['content'];
             _bgColor = Color(data['color']);
             _isBubble = data['isBubble'];
-            _overlayWidth = 180.0; 
+            _overlayWidth = 180.0;
             _overlayHeight = 180.0;
           });
-          
+
           if (_isBubble) {
             FlutterOverlayWindow.resizeOverlay(100, 100, true);
           } else {
@@ -137,7 +138,7 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
   Widget _buildBubble() {
     return GestureDetector(
       onDoubleTap: () {
-        HapticFeedback.mediumImpact(); 
+        HapticFeedback.mediumImpact();
         setState(() => _isBubble = false);
         FlutterOverlayWindow.resizeOverlay(_overlayWidth.toInt(), _overlayHeight.toInt(), true);
       },
@@ -168,9 +169,9 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15), 
-            blurRadius: 32, 
-            offset: const Offset(0, 12)
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 32,
+              offset: const Offset(0, 12)
           ),
         ],
       ),
@@ -243,31 +244,31 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.only(top: 8),
-                      decoration: BoxDecoration(
-                        border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.05))),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          GestureDetector(
-                            onPanUpdate: (details) {
-                              setState(() {
-                                _overlayWidth = (_overlayWidth + details.delta.dx).clamp(160.0, 600.0);
-                                _overlayHeight = (_overlayHeight + details.delta.dy).clamp(160.0, 800.0);
-                              });
-                              FlutterOverlayWindow.resizeOverlay(_overlayWidth.toInt(), _overlayHeight.toInt(), true);
-                            },
-                            child: const Padding(
-                              padding: EdgeInsets.all(4.0),
-                              child: RotatedBox(
-                                quarterTurns: 1,
-                                child: Icon(Icons.drag_indicator_rounded, size: 20, color: Colors.black26),
+                        padding: const EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.05))),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            GestureDetector(
+                              onPanUpdate: (details) {
+                                setState(() {
+                                  _overlayWidth = (_overlayWidth + details.delta.dx).clamp(160.0, 600.0);
+                                  _overlayHeight = (_overlayHeight + details.delta.dy).clamp(160.0, 800.0);
+                                });
+                                FlutterOverlayWindow.resizeOverlay(_overlayWidth.toInt(), _overlayHeight.toInt(), true);
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(4.0),
+                                child: RotatedBox(
+                                  quarterTurns: 1,
+                                  child: Icon(Icons.drag_indicator_rounded, size: 20, color: Colors.black26),
+                                ),
                               ),
-                            ),
-                          )
-                        ],
-                      )
+                            )
+                          ],
+                        )
                     )
                   ],
                 ),
@@ -281,18 +282,18 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
               width: foldSize,
               height: foldSize,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.35),
-                borderRadius: const BorderRadius.only(
-                  bottomRight: Radius.circular(10), 
-                  topLeft: Radius.circular(14),     
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                    offset: const Offset(2, 2),
-                  )
-                ]
+                  color: Colors.white.withValues(alpha: 0.35),
+                  borderRadius: const BorderRadius.only(
+                    bottomRight: Radius.circular(10),
+                    topLeft: Radius.circular(14),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(2, 2),
+                    )
+                  ]
               ),
             ),
           ),
@@ -315,7 +316,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('theme_mode');
-    
+
     if (saved == null) {
       // First install: default to Light as requested
       state = ThemeMode.light;
@@ -323,8 +324,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       state = saved == 'dark'
           ? ThemeMode.dark
           : saved == 'light'
-              ? ThemeMode.light
-              : ThemeMode.system;
+          ? ThemeMode.light
+          : ThemeMode.system;
     }
   }
 
@@ -334,8 +335,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     final str = mode == ThemeMode.dark
         ? 'dark'
         : mode == ThemeMode.light
-            ? 'light'
-            : 'system';
+        ? 'light'
+        : 'system';
     await prefs.setString('theme_mode', str);
   }
 }
@@ -343,7 +344,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 // ─── Entry Point ─────────────────────────────────────────────────────────────
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize notifications & timezone
   tz.initializeTimeZones();
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -361,6 +362,12 @@ void main() async {
     debugPrint('NOVE: Failed to initialize database: $e\n$st');
     // Continue — app will show empty state rather than crashing
   }
+
+  // ── Unity Ads ─────────────────────────────────────────────────────────────
+  await AdsService.initialize();
+  // loadInterstitial() and loadRewarded() are called inside onComplete
+  // ──────────────────────────────────────────────────────────────────────────
+
   runApp(const ProviderScope(child: NoveApp()));
 }
 
@@ -567,21 +574,21 @@ class _NoveShellState extends ConsumerState<NoveShell> with WidgetsBindingObserv
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Listen to the global shared stream
     _overlaySubscription = sharedOverlayStream.listen((event) {
       if (event.toString().startsWith("restore:")) {
         if (mounted) {
-          setState(() => _currentIndex = 1); 
+          setState(() => _currentIndex = 1);
         }
-        ref.read(poppedOutNoteProvider.notifier).state = null; 
+        ref.read(poppedOutNoteProvider.notifier).state = null;
       }
     });
   }
 
   @override
   void dispose() {
-    _overlaySubscription?.cancel(); 
+    _overlaySubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -612,7 +619,7 @@ class _NoveShellState extends ConsumerState<NoveShell> with WidgetsBindingObserv
     ref.watch(appLaunchWatcherProvider);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return StickyOverlayLayer( 
+    return StickyOverlayLayer(
       child: Scaffold(
         extendBody: true,
         body: Stack(
@@ -658,11 +665,11 @@ class _NoveTabBar extends StatelessWidget {
       _TabItem(icon: Icons.settings_outlined, activeIcon: Icons.settings, label: 'Settings'),
     ];
 
-    final bgColor = isDark 
-        ? NoveColors.cardDark.withValues(alpha: 0.7) 
+    final bgColor = isDark
+        ? NoveColors.cardDark.withValues(alpha: 0.7)
         : const Color(0xFFFCF9F3).withValues(alpha: 0.85);
-    final borderColor = isDark 
-        ? NoveColors.warmGray800.withValues(alpha: 0.5) 
+    final borderColor = isDark
+        ? NoveColors.warmGray800.withValues(alpha: 0.5)
         : NoveColors.warmGray200.withValues(alpha: 0.5);
     final inactiveColor = isDark ? NoveColors.warmGray500 : NoveColors.warmGray500;
 
@@ -695,7 +702,7 @@ class _NoveTabBar extends StatelessWidget {
                   children: List.generate(items.length, (i) {
                     final item = items[i];
                     final isActive = currentIndex == i;
-                    
+
                     return Expanded(
                       child: Semantics(
                         label: '${item.label} Tab',
@@ -703,7 +710,7 @@ class _NoveTabBar extends StatelessWidget {
                         button: true,
                         child: GestureDetector(
                           onTap: () {
-                            HapticFeedback.lightImpact(); 
+                            HapticFeedback.lightImpact();
                             onTap(i);
                           },
                           behavior: HitTestBehavior.opaque,

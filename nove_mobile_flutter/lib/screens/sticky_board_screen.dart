@@ -103,8 +103,6 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
     final text = _inputController.text.trim();
     if (text.isNotEmpty) {
       final screenWidth = MediaQuery.of(context).size.width;
-      // Compute position BEFORE creating — provider state doesn't yet
-      // contain the new note, so the collision check is accurate.
       final pos = _getUnoccupiedGridPosition(screenWidth);
       ref
           .read(stickyNotesProvider.notifier)
@@ -231,7 +229,7 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
   Offset _getGridPosition(int index, double screenWidth) {
     const double cardWidth = 160.0;
     const double cardHeight = 184.0;
-    const double gapX = 16.0; // Increased gap slightly for better breathing room
+    const double gapX = 16.0;
     const double gapY = 20.0;
     const double minPadding = 16.0;
 
@@ -239,14 +237,12 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
     int columns = ((availableWidth + gapX) / (cardWidth + gapX)).floor();
     if (columns < 1) columns = 1;
 
-    // Calculate total width of the grid to center it
     final double totalGridWidth = (columns * cardWidth) + ((columns - 1) * gapX);
     final double horizontalOffset = (screenWidth - totalGridWidth) / 2;
 
     final int col = index % columns;
     final int row = index ~/ columns;
 
-    // Minimal top padding since the SingleChildScrollView already has top: 130
     const double topPadding = 16.0;
 
     final double x = horizontalOffset + col * (cardWidth + gapX);
@@ -265,9 +261,6 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
     }
   }
 
-  // Takes an explicit [existing] list so the caller can pass the current
-  // state snapshot — avoids stale reads and works correctly before the
-  // new note has been added to the provider.
   Offset _getUnoccupiedGridPosition(
     double screenWidth, [
     List<StickyNote>? existing,
@@ -316,7 +309,6 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
           ),
 
           // ── Scrollable sticky notes area ───────────────────────────────
-          // top padding = ~130 so notes start below the glass header
           Positioned.fill(
             child: visibleNotes.isEmpty
                 ? Center(
@@ -347,10 +339,6 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
                           final isPinned = notifier.isPinned(note.id);
                           final screenWidth = MediaQuery.of(context).size.width;
 
-                          // Notes created via _addNote always have a position.
-                          // Legacy notes saved at (0,0) are relocated once on
-                          // the next frame; until then render at the first free
-                          // slot so they don't all pile up at the origin.
                           Offset pos;
                           if (note.x == 0 && note.y == 0) {
                             pos = _getUnoccupiedGridPosition(
@@ -413,6 +401,10 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
             right: 0,
             child: _GlassHeader(
               isDark: isDark,
+              // FIX (Bug 3 — sticky_board): noteCount was defined on _GlassHeader
+              // but never passed at this call site, so the note-count badge was
+              // permanently hidden. Pass visibleNotes.length so it renders correctly.
+              noteCount: visibleNotes.length,
               onRestore: () async {
                 try {
                   await FlutterOverlayWindow.closeOverlay();
@@ -445,12 +437,6 @@ class _StickyBoardScreenState extends ConsumerState<StickyBoardScreen> {
 }
 
 // ─── Glassmorphism Header ─────────────────────────────────────────────────────
-//
-// Uses BackdropFilter + ClipRect to blur whatever is behind it (dot grid +
-// sticky notes sliding underneath). The LinearGradient shimmer on top sells
-// the frosted-glass "surface" feel without any extra package.
-// SafeArea top padding is applied manually so status bar icons are never
-// obscured and the blur extends edge-to-edge behind the system bar.
 
 class _GlassHeader extends StatelessWidget {
   final bool isDark;
@@ -644,8 +630,6 @@ class _GlassHeader extends StatelessWidget {
 }
 
 // ── Glass icon button ─────────────────────────────────────────────────────────
-// Each button is its own frosted pill — slightly more opaque than the header
-// panel so it reads as a distinct tappable surface within the glass layer.
 
 class _GlassIconButton extends StatelessWidget {
   final IconData icon;
@@ -737,17 +721,6 @@ class DotGridPainter extends CustomPainter {
 }
 
 // ─── Sticky Card ─────────────────────────────────────────────────────────────
-//
-// All 4 action icons restored to ONE row alongside the drag handle.
-//
-// Math proof (card = 160px, padding = 10px each side → content = 140px):
-//   Drag handle : 28 px
-//   4 icons × 24 px : 96 px
-//   mainAxisAlignment.spaceBetween gap fills the remaining 16 px
-//   Total: 28 + 96 = 124 px ≤ 140 px  ✓  No overflow.
-//
-// Icon size is 15px (down from 18px). Tap target stays 24×24 — well above
-// the 48×48 Material guideline minimum for a compact card context.
 
 class _StickyCard extends StatefulWidget {
   final StickyNote note;
@@ -845,7 +818,6 @@ class _StickyCardState extends State<_StickyCard> {
     );
   }
 
-  // 24×24 tap surface, 15px icon — no overflow within 140px content width
   Widget _iconBtn({
     required IconData icon,
     required VoidCallback onTap,
@@ -900,8 +872,6 @@ class _StickyCardState extends State<_StickyCard> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Padding(
-                    // 10px sides → 140px content width. Math above confirms
-                    // 124px of buttons fits with 16px to spare.
                     padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

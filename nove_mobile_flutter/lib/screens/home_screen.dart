@@ -12,7 +12,9 @@ import '../providers/notes_provider.dart';
 import '../services/category_service.dart';
 import '../services/stats_service.dart';
 import '../theme/tokens.dart';
+import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'editor_screen.dart';
+import '../services/ads_service.dart';
 
 enum _SortOrder { updatedDesc, updatedAsc, titleAsc, titleDesc, wordCountDesc }
 
@@ -344,6 +346,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: AdsService.isInitialized
+          ? SafeArea(
+              child: UnityBannerAd(
+                placementId: AdsService.bannerPlacementId,
+                onLoad: (id) => debugPrint('Banner loaded: \$id'),
+                onClick: (id) => debugPrint('Banner clicked: \$id'),
+                onFailed: (id, error, message) =>
+                    debugPrint('Banner failed: \$message'),
+              ),
+            )
+          : const SizedBox.shrink(),
       floatingActionButton: Padding(padding: const EdgeInsets.only(bottom: 84), child: EnhancedFAB(scrollController: _scrollController, onPressed: _createNote)),
     );
   }

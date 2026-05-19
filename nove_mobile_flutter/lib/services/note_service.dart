@@ -149,8 +149,18 @@ class NoteService {
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
+  // FIX (Bug 2): The original code called deleteVersions() during a SOFT delete,
+  // which destroyed version history for notes still in the Trash that could be
+  // restored later. Version history is now only purged on PERMANENT deletion.
   static Future<bool> deleteNote(String id) async {
+    // Soft-delete only — version history is preserved so Trash restore works correctly.
     final affected = await DatabaseService.deleteNote(id);
+    return affected > 0;
+  }
+
+  /// Permanently removes a note AND its version history (called from Trash "empty" action).
+  static Future<bool> permanentlyDeleteNote(String id) async {
+    final affected = await DatabaseService.permanentlyDeleteNote(id);
     if (affected > 0) {
       await DatabaseService.deleteVersions(id);
     }
@@ -164,7 +174,8 @@ class NoteService {
   static Future<void> clearAll() async {
     final notes = await getAllNotes();
     for (final note in notes) {
-      await deleteNote(note.id);
+      // Use permanentlyDeleteNote so versions are cleaned up as well.
+      await permanentlyDeleteNote(note.id);
     }
   }
 

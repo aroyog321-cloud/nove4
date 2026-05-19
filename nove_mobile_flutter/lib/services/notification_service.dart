@@ -21,6 +21,12 @@ class NotificationService {
 
     const details = NotificationDetails(android: androidDetails);
 
+    // FIX (Bug 5): Removed `uiLocalNotificationDateInterpretation`.
+    // That parameter is iOS-only (it controls how iOS interprets the fire date).
+    // On Android it has no effect, but including it with an iOS-specific enum value
+    // in an Android-only NotificationDetails object is misleading and causes a
+    // compile warning in strict-mode analysis. For a cross-platform call you would
+    // also supply `DarwinNotificationDetails` in `NotificationDetails(ios: ...)`.
     await _notifications.zonedSchedule(
       id,
       title,
