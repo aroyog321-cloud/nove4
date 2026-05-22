@@ -12,6 +12,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'services/database_service.dart';
+import 'services/seed_service.dart';
 import 'screens/home_screen.dart';
 
 import 'screens/sticky_board_screen.dart';
@@ -358,6 +359,7 @@ void main() async {
   ]);
   try {
     await DatabaseService.init();
+    await SeedService.seedIfNeeded(); // Insert default content on first install
   } catch (e, st) {
     debugPrint('NOVE: Failed to initialize database: $e\n$st');
     // Continue — app will show empty state rather than crashing

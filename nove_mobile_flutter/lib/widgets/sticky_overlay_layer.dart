@@ -228,6 +228,9 @@ class _FullStickyCardState extends ConsumerState<_FullStickyCard>
         .minimize(widget.entry.note.id);
   }
 
+  // Captured in build() so the snackbar always has a valid mounted context.
+  BuildContext? _buildContext;
+
   Future<void> _sendToBoard() async {
     HapticFeedback.mediumImpact();
 
@@ -237,8 +240,7 @@ class _FullStickyCardState extends ConsumerState<_FullStickyCard>
 
     // The note already exists on the board (it was popped out from there),
     // so no need to re-add it. Just show a snackbar confirmation.
-    // If you want to "send" a NEW note to the board, call createNote here.
-    final ctx = _scaffoldContext;
+    final ctx = _buildContext;
     if (ctx != null && ctx.mounted) {
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
@@ -263,18 +265,9 @@ class _FullStickyCardState extends ConsumerState<_FullStickyCard>
     }
   }
 
-  BuildContext? get _scaffoldContext {
-    try {
-      return _scaffoldKey.currentContext;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  final GlobalKey _scaffoldKey = GlobalKey();
-
   @override
   Widget build(BuildContext context) {
+    _buildContext = context; // keep a fresh, valid context for async callbacks
     final bgColor = _bgColorForSticky(widget.entry.note.color);
     final textColor = _textColorForSticky(widget.entry.note.color);
     final screenW = MediaQuery.of(context).size.width;

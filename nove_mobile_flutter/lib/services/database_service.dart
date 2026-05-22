@@ -169,13 +169,14 @@ class DatabaseService {
   }
 
   /// Permanently removes the note record (used in trash emptying).
+  /// NOTE: version history deletion is handled by the caller (NoteService.permanentlyDeleteNote)
+  /// to avoid double-deleting when this is called directly from TrashScreen.
   static Future<int> permanentlyDeleteNote(String id) async {
     await init();
     final initialLength = _notes.length;
     _notes.removeWhere((n) => n.id == id);
     if (_notes.length != initialLength) {
       await _save();
-      await deleteVersions(id);
     }
     return initialLength - _notes.length;
   }

@@ -7,7 +7,7 @@ import '../models/note.dart';
 import '../models/sticky_note.dart';
 import '../providers/notes_provider.dart';
 import '../providers/sticky_notes_provider.dart';
-import '../services/database_service.dart';
+import '../services/note_service.dart';
 import '../theme/tokens.dart';
 
 class TrashScreen extends ConsumerStatefulWidget {
@@ -39,7 +39,7 @@ class _TrashScreenState extends ConsumerState<TrashScreen> with SingleTickerProv
 
   Future<void> _loadTrash() async {
     setState(() => _isLoading = true);
-    final notes = await DatabaseService.getDeletedNotes();
+    final notes = await NoteService.getAllDeletedNotes();
     final stickyNotes = await ref.read(stickyNotesProvider.notifier).getTrashedNotes();
     if (mounted) {
       setState(() {
@@ -53,7 +53,7 @@ class _TrashScreenState extends ConsumerState<TrashScreen> with SingleTickerProv
   // --- Notes actions ---
   Future<void> _restoreNote(String id) async {
     HapticFeedback.mediumImpact();
-    await DatabaseService.restoreNote(id);
+    await NoteService.restoreNote(id);
     await ref.read(notesProvider.notifier).loadNotes();
     await _loadTrash();
     _showSnack('Note restored');
@@ -61,7 +61,7 @@ class _TrashScreenState extends ConsumerState<TrashScreen> with SingleTickerProv
 
   Future<void> _permanentlyDeleteNote(String id) async {
     HapticFeedback.heavyImpact();
-    await DatabaseService.permanentlyDeleteNote(id);
+    await NoteService.permanentlyDeleteNote(id); // also cleans up version history
     await _loadTrash();
   }
 
@@ -109,7 +109,7 @@ class _TrashScreenState extends ConsumerState<TrashScreen> with SingleTickerProv
     if (confirm == true) {
       if (_tabController.index == 0) {
         for (final note in _deletedNotes) {
-          await DatabaseService.permanentlyDeleteNote(note.id);
+          await NoteService.permanentlyDeleteNote(note.id); // cleans up version history
         }
       } else {
         for (final sticky in _deletedStickyNotes) {

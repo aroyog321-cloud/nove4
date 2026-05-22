@@ -63,6 +63,9 @@ class NoteService {
   static Future<List<Note>> getNotesByCategory(String category) =>
       DatabaseService.getNotesByCategory(category);
 
+  static Future<List<Note>> getAllDeletedNotes() =>
+      DatabaseService.getDeletedNotes();
+
   // ─── Create ───────────────────────────────────────────────────────────────
 
   static Future<Note> createNote(
