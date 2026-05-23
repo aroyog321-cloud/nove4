@@ -216,9 +216,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     HapticFeedback.lightImpact();
 
     // Show interstitial when saving a NEW note (once per session)
-    if (_isNewNote && !_adShown && AdsService.isInitialized) {
+    if (_isNewNote && !_adShown && AdsService.isInitialized && mounted) {
       _adShown = true;
       AdsService.showInterstitial(
+        context: context,          // required by Appnext overlay approach
         onComplete: () {
           if (mounted) Navigator.pop(context);
         },

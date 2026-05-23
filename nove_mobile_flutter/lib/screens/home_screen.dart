@@ -12,7 +12,6 @@ import '../providers/notes_provider.dart';
 import '../services/category_service.dart';
 import '../services/stats_service.dart';
 import '../theme/tokens.dart';
-import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'editor_screen.dart';
 import '../services/ads_service.dart';
 
@@ -346,17 +345,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: AdsService.isInitialized
-          ? SafeArea(
-              child: UnityBannerAd(
-                placementId: AdsService.bannerPlacementId,
-                onLoad: (id) => debugPrint('Banner loaded: \$id'),
-                onClick: (id) => debugPrint('Banner clicked: \$id'),
-                onFailed: (id, error, message) =>
-                    debugPrint('Banner failed: \$message'),
-              ),
-            )
-          : const SizedBox.shrink(),
+      // Banner ad is shown natively by InAppAdsBanner.kt on app launch
+      // No Dart widget needed here
       floatingActionButton: Padding(padding: const EdgeInsets.only(bottom: 84), child: EnhancedFAB(scrollController: _scrollController, onPressed: _createNote)),
     );
   }
@@ -651,6 +641,7 @@ class _NoteCardState extends State<NoteCard> {
                           widget.isSelected ? 20 : 17, 20, 20, 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
