@@ -42,14 +42,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   DateTime? _reminderDate;
 
   bool _hasChanges = false;
-  bool _adShown = false; // ensures we show at most one ad per note session
+  bool _adShown = false;
   bool _isSaved = false;
   bool _focusMode = false;
   bool _typewriterMode = false;
   bool _showScrollToTop = false;
   bool _showFindReplace = false;
 
-  // Find & Replace state
   final TextEditingController _findController = TextEditingController();
   final TextEditingController _replaceController = TextEditingController();
   List<int> _findMatches = [];
@@ -70,7 +69,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       text: widget.note?.title == 'Untitled' ? '' : (widget.note?.title ?? ''),
     );
     _contentController = MarkdownEditingController(
-      
       text: widget.note?.content ?? '',
     );
 
@@ -78,8 +76,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     _isFavorite = widget.note?.isFavorite ?? false;
     _selectedCategory = widget.note?.category ?? '';
     _selectedColor = widget.note?.colorLabel ?? '#FFFFFF';
-    _reminderDate = widget.note?.reminder != null 
-        ? DateTime.fromMillisecondsSinceEpoch(widget.note!.reminder!) 
+    _reminderDate = widget.note?.reminder != null
+        ? DateTime.fromMillisecondsSinceEpoch(widget.note!.reminder!)
         : null;
 
     _titleController.addListener(_onChanged);
@@ -112,7 +110,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final sel = _contentController.selection;
     if (sel.isCollapsed && sel.baseOffset >= 2) {
       final lastTwo = text.substring(sel.baseOffset - 2, sel.baseOffset);
-      if (lastTwo == '[[' ) {
+      if (lastTwo == '[[') {
         _showWikiLinkPicker();
       }
     }
@@ -164,7 +162,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   void _recordWordStats() {
-    final newWordCount = _contentController.text.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+    final newWordCount = _contentController.text
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .length;
     final diff = newWordCount - _initialWordCount;
     if (diff > 0) StatsService.addWords(diff);
     _initialWordCount = newWordCount;
@@ -209,17 +211,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         category: _selectedCategory.isNotEmpty ? _selectedCategory : null,
         reminder: _reminderDate?.millisecondsSinceEpoch,
       );
-      // Logic for versions... NoteService.updateNote returned Note?, but provider version returns void (optimistic)
-      // I'll stick to the provider for consistency
     }
 
     HapticFeedback.lightImpact();
 
-    // Show interstitial when saving a NEW note (once per session)
-    if (_isNewNote && !_adShown && AdsService.isInitialized && mounted) {
+    if (!_adShown && AdsService.isInitialized && mounted && _hasChanges) {
       _adShown = true;
       AdsService.showInterstitial(
-        context: context,          // required by Appnext overlay approach
+        context: context,
         onComplete: () {
           if (mounted) Navigator.pop(context);
         },
@@ -235,11 +234,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: NoveColors.cardBg(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Empty note', style: GoogleFonts.lora(fontWeight: FontWeight.bold, color: NoveColors.primaryText(context))),
-        content: Text('This note is empty. Discard it?', style: GoogleFonts.dmSans(color: NoveColors.secondaryText(context))),
+        title: Text('Empty note',
+            style: GoogleFonts.lora(
+                fontWeight: FontWeight.bold,
+                color: NoveColors.primaryText(context))),
+        content: Text('This note is empty. Discard it?',
+            style: GoogleFonts.dmSans(color: NoveColors.secondaryText(context))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Keep', style: GoogleFonts.dmSans(color: NoveColors.accent(context), fontWeight: FontWeight.w600))),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard', style: GoogleFonts.dmSans(color: NoveColors.error))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Keep',
+                  style: GoogleFonts.dmSans(
+                      color: NoveColors.accent(context),
+                      fontWeight: FontWeight.w600))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('Discard',
+                  style: GoogleFonts.dmSans(color: NoveColors.error))),
         ],
       ),
     );
@@ -278,17 +289,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
-  // ─── WikiLink Picker ───────────────────────────────────────────────────────
   Future<void> _showWikiLinkPicker() async {
     final notes = ref.read(notesProvider).notes;
     showModalBottomSheet(
       context: context,
       backgroundColor: NoveColors.cardBg(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => Column(
         children: [
           const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: NoveColors.warmGray300, borderRadius: BorderRadius.circular(2))),
+          Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: NoveColors.warmGray300,
+                  borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
           Text('Link to Note', style: NoveTypography.h3(ctx)),
           const SizedBox(height: 8),
@@ -298,7 +314,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               itemBuilder: (context, index) {
                 final n = notes[index];
                 return ListTile(
-                  title: Text(n.title.isNotEmpty ? n.title : 'Untitled', style: NoveTypography.body(ctx)),
+                  title: Text(n.title.isNotEmpty ? n.title : 'Untitled',
+                      style: NoveTypography.body(ctx)),
                   onTap: () {
                     Navigator.pop(ctx);
                     final name = n.title.isNotEmpty ? n.title : 'Untitled';
@@ -307,7 +324,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     final newText = text.replaceRange(sel.start, sel.end, '$name]] ');
                     _contentController.value = TextEditingValue(
                       text: newText,
-                      selection: TextSelection.collapsed(offset: sel.start + name.length + 3),
+                      selection: TextSelection.collapsed(
+                          offset: sel.start + name.length + 3),
                     );
                   },
                 );
@@ -319,7 +337,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
-  // ─── Slash Command Picker ──────────────────────────────────────────────────
   Future<void> _showSlashCommandPicker() async {
     final commands = [
       {'icon': Icons.title, 'label': 'Heading 1', 'insert': '# '},
@@ -336,13 +353,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: NoveColors.cardBg(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: NoveColors.warmGray300, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: NoveColors.warmGray300,
+                    borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Text('Commands', style: NoveTypography.h3(ctx)),
             const SizedBox(height: 8),
@@ -353,19 +376,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 itemBuilder: (context, index) {
                   final cmd = commands[index];
                   return ListTile(
-                    leading: Icon(cmd['icon'] as IconData, color: NoveColors.secondaryText(ctx)),
-                    title: Text(cmd['label'] as String, style: NoveTypography.body(ctx)),
+                    leading: Icon(cmd['icon'] as IconData,
+                        color: NoveColors.secondaryText(ctx)),
+                    title: Text(cmd['label'] as String,
+                        style: NoveTypography.body(ctx)),
                     onTap: () {
                       Navigator.pop(ctx);
-                      
                       final sel = _contentController.selection;
                       final text = _contentController.text;
-                      final newText = text.replaceRange(sel.baseOffset - 1, sel.baseOffset, '');
+                      final newText = text.replaceRange(
+                          sel.baseOffset - 1, sel.baseOffset, '');
                       _contentController.value = TextEditingValue(
                         text: newText,
-                        selection: TextSelection.collapsed(offset: sel.baseOffset - 1),
+                        selection: TextSelection.collapsed(
+                            offset: sel.baseOffset - 1),
                       );
-
                       if (cmd.containsKey('action')) {
                         (cmd['action'] as Function)();
                       } else if (cmd.containsKey('insert')) {
@@ -383,7 +408,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
-  // ─── Templates ─────────────────────────────────────────────────────────────
   Future<void> _showTemplatePicker() async {
     final templates = [
       {'title': 'Meeting Notes', 'content': '# Meeting: \n**Date:** \n**Attendees:** \n\n## Agenda\n• \n\n## Action Items\n☐ \n'},
@@ -395,13 +419,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: NoveColors.cardBg(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 12),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: NoveColors.warmGray300, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: NoveColors.warmGray300,
+                    borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Text('Templates', style: NoveTypography.h3(ctx)),
             const SizedBox(height: 8),
@@ -412,7 +442,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 itemBuilder: (context, index) {
                   final t = templates[index];
                   return ListTile(
-                    leading: Icon(Icons.file_copy_outlined, color: NoveColors.secondaryText(ctx)),
+                    leading: Icon(Icons.file_copy_outlined,
+                        color: NoveColors.secondaryText(ctx)),
                     title: Text(t['title']!, style: NoveTypography.body(ctx)),
                     onTap: () {
                       Navigator.pop(ctx);
@@ -431,10 +462,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
-  // ─── Find & Replace ───────────────────────────────────────────────────────
   void _updateFindMatches() {
     final query = _findController.text;
-    if (query.isEmpty) { setState(() { _findMatches = []; _findMatchIndex = 0; }); return; }
+    if (query.isEmpty) {
+      setState(() { _findMatches = []; _findMatchIndex = 0; });
+      return;
+    }
     final text = _contentController.text;
     final matches = <int>[];
     int idx = 0;
@@ -446,15 +479,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
     setState(() { _findMatches = matches; _findMatchIndex = 0; });
     if (matches.isNotEmpty) {
-      _contentController.selection = TextSelection(baseOffset: matches[0], extentOffset: matches[0] + query.length);
+      _contentController.selection = TextSelection(
+          baseOffset: matches[0],
+          extentOffset: matches[0] + query.length);
     }
   }
 
   void _navigateMatch(int direction) {
     if (_findMatches.isEmpty) return;
-    setState(() { _findMatchIndex = (_findMatchIndex + direction).clamp(0, _findMatches.length - 1); });
+    setState(() {
+      _findMatchIndex =
+          (_findMatchIndex + direction).clamp(0, _findMatches.length - 1);
+    });
     final idx = _findMatches[_findMatchIndex];
-    _contentController.selection = TextSelection(baseOffset: idx, extentOffset: idx + _findController.text.length);
+    _contentController.selection = TextSelection(
+        baseOffset: idx, extentOffset: idx + _findController.text.length);
   }
 
   void _replaceCurrentMatch() {
@@ -462,7 +501,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final idx = _findMatches[_findMatchIndex];
     final query = _findController.text;
     final replacement = _replaceController.text;
-    _contentController.text = _contentController.text.replaceRange(idx, idx + query.length, replacement);
+    _contentController.text =
+        _contentController.text.replaceRange(idx, idx + query.length, replacement);
     _onChanged();
     _updateFindMatches();
   }
@@ -470,12 +510,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   void _replaceAllMatches() {
     final query = _findController.text;
     if (query.isEmpty) return;
-    _contentController.text = _contentController.text.replaceAll(query, _replaceController.text);
+    _contentController.text =
+        _contentController.text.replaceAll(query, _replaceController.text);
     _onChanged();
     _updateFindMatches();
   }
 
-  // ─── Advanced Actions ──────────────────────────────────────────────────────
   Future<void> _insertImage() async {
     HapticFeedback.mediumImpact();
     final picker = ImagePicker();
@@ -486,8 +526,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(leading: const Icon(Icons.camera_alt_outlined), title: const Text('Camera'), onTap: () => Navigator.pop(ctx, ImageSource.camera)),
-            ListTile(leading: const Icon(Icons.photo_library_outlined), title: const Text('Gallery'), onTap: () => Navigator.pop(ctx, ImageSource.gallery)),
+            ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Camera'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera)),
+            ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery)),
           ],
         ),
       ),
@@ -511,18 +557,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       initialTime: TimeOfDay.fromDateTime(_reminderDate ?? DateTime.now()),
     );
     if (time == null || !mounted) return;
-    
-    final finalDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final finalDate =
+        DateTime(date.year, date.month, date.day, time.hour, time.minute);
     setState(() {
       _reminderDate = finalDate;
       _hasChanges = true;
     });
-
     if (widget.note != null) {
       await NotificationService.scheduleReminder(
         id: widget.note!.id.hashCode,
         title: 'Reminder: $_effectiveTitle',
-        body: '${_contentController.text.substring(0, _contentController.text.length > 50 ? 50 : _contentController.text.length).trim()}...',
+        body:
+            '${_contentController.text.substring(0, _contentController.text.length > 50 ? 50 : _contentController.text.length).trim()}...',
         scheduledDate: finalDate,
       );
     }
@@ -555,7 +601,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: NoveColors.cardBg(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
         builder: (_, scrollCtrl) => Column(
@@ -567,13 +614,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               child: ListView.separated(
                 controller: scrollCtrl,
                 itemCount: versions.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
+                separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, i) {
                   final v = versions[i];
                   return ListTile(
-                    title: Text(DateFormat('MMM d, h:mm a').format(DateTime.fromMillisecondsSinceEpoch(v.updatedAt))),
+                    title: Text(DateFormat('MMM d, h:mm a').format(
+                        DateTime.fromMillisecondsSinceEpoch(v.updatedAt))),
                     subtitle: Text('${v.wordCount} words'),
-                    trailing: TextButton(onPressed: () { Navigator.pop(ctx); _contentController.text = v.content; _titleController.text = v.title; _onChanged(); }, child: const Text('Restore')),
+                    trailing: TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _contentController.text = v.content;
+                          _titleController.text = v.title;
+                          _onChanged();
+                        },
+                        child: const Text('Restore')),
                   );
                 },
               ),
@@ -591,11 +646,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       isScrollControlled: true,
       backgroundColor: NoveColors.cardBg(context),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: 'New Category Name')),
+            TextField(
+                controller: controller,
+                autofocus: true,
+                decoration:
+                    const InputDecoration(hintText: 'New Category Name')),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
@@ -620,31 +683,32 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     HapticFeedback.mediumImpact();
     setState(() {
       _focusMode = !_focusMode;
-      SystemChrome.setEnabledSystemUIMode(_focusMode ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
+      SystemChrome.setEnabledSystemUIMode(
+          _focusMode ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge);
     });
   }
 
-  void _toggleFavorite() { HapticFeedback.selectionClick(); setState(() { _isFavorite = !_isFavorite; _hasChanges = true; }); }
-  void _togglePin() { HapticFeedback.selectionClick(); setState(() { _isPinned = !_isPinned; _hasChanges = true; }); }
+  void _toggleFavorite() {
+    HapticFeedback.selectionClick();
+    setState(() { _isFavorite = !_isFavorite; _hasChanges = true; });
+  }
+
+  void _togglePin() {
+    HapticFeedback.selectionClick();
+    setState(() { _isPinned = !_isPinned; _hasChanges = true; });
+  }
 
   void _scrollToCursor() {
     if (!_typewriterMode || !_contentController.selection.isCollapsed) return;
-    
-    // We wait for the selection to settle
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final text = _contentController.text;
       final offset = _contentController.selection.baseOffset;
       if (offset < 0) return;
-
-      // Approximate line height from theme
       final lineCount = '\n'.allMatches(text.substring(0, offset)).length;
-      const lineHeight = 28.0; 
-      
+      const lineHeight = 28.0;
       final viewportHeight = MediaQuery.of(context).size.height;
-      // We want the cursor to be around 40% from the top
       final targetScroll = (lineCount * lineHeight) - (viewportHeight * 0.4);
-      
       if (targetScroll > 0) {
         _editorScrollController.animateTo(
           targetScroll,
@@ -655,6 +719,129 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     });
   }
 
+  // ── Banner Ad Widget ────────────────────────────────────────────────────────
+ Widget _buildBannerAd(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final bgColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+  final textColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70);
+  final accentColor = isDark ? const Color(0xFF6C63FF) : const Color(0xFF3B82F6);
+
+  return GestureDetector(
+    // ── Tap ANYWHERE on banner to open ad ──────────────────────────────
+    onTap: () => AdsService.showInterstitial(context: context),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1C1C1E), const Color(0xFF2C2C2E)]
+              : [const Color(0xFFEEF2FF), const Color(0xFFE0F2FE)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        border: Border(
+          top: BorderSide(
+            color: accentColor.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Animated attention dot
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: accentColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [accentColor, const Color(0xFF3B82F6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: Text(
+                'AD',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'SPONSORED',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                Text(
+                  'Tap to discover exclusive offers',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF1C1C1E),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [accentColor, const Color(0xFF3B82F6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withOpacity(0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Text(
+              'Open →',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -664,20 +851,26 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
     return Scaffold(
       backgroundColor: NoveColors.bg(context),
-      resizeToAvoidBottomInset: false, // Handle manually for smoother toolbar
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top Bar ─────────────────────────────────────────────────
+            // ── Top Bar ──────────────────────────────────────────────────
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: NoveColors.bg(context), border: Border(bottom: BorderSide(color: NoveColors.cardBorder(context), width: 0.5))),
+              decoration: BoxDecoration(
+                  color: NoveColors.bg(context),
+                  border: Border(
+                      bottom: BorderSide(
+                          color: NoveColors.cardBorder(context), width: 0.5))),
               child: Row(
                 children: [
-                  GestureDetector(onTap: () {
-                    _autoSave(); // Save silently and just go back
-                    Navigator.pop(context);
-                  }, child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16)),
+                  GestureDetector(
+                      onTap: () {
+                        _autoSave();
+                        Navigator.pop(context);
+                      },
+                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16)),
                   const Spacer(),
                   _FormatIconBtn(icon: Icons.notifications_none_rounded, tooltip: 'Reminder', onTap: _setReminder, isDark: isDark, expand: false),
                   _FormatIconBtn(icon: Icons.picture_as_pdf_outlined, tooltip: 'Export PDF', onTap: _exportPdf, isDark: isDark, expand: false),
@@ -688,8 +881,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   _FormatIconBtn(icon: _isPinned ? Icons.push_pin : Icons.push_pin_outlined, tooltip: 'Pin', onTap: _togglePin, isDark: isDark, expand: false),
                   if (!_isNewNote) _FormatIconBtn(icon: Icons.history_rounded, tooltip: 'History', onTap: _showVersionHistory, isDark: isDark, expand: false),
                   TextButton(
-                    onPressed: _saveAndClose, 
-                    child: Text('Save', style: NoveTypography.body(context).copyWith(color: NoveColors.accent(context), fontWeight: FontWeight.bold))
+                    onPressed: _saveAndClose,
+                    child: Text('Save',
+                        style: NoveTypography.body(context).copyWith(
+                            color: NoveColors.accent(context),
+                            fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -701,7 +897,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 child: TextField(
                   controller: _titleController,
                   style: NoveTypography.h1(context),
-                  decoration: const InputDecoration(hintText: 'Title', border: InputBorder.none),
+                  decoration:
+                      const InputDecoration(hintText: 'Title', border: InputBorder.none),
                 ),
               ),
               SingleChildScrollView(
@@ -710,10 +907,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 child: Row(
                   children: [
                     ..._availableCategories.map((cat) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _CategoryChip(label: cat, isActive: _selectedCategory == cat, onTap: () => setState(() => _selectedCategory = cat), context: context),
-                    )),
-                    _FormatIconBtn(icon: Icons.add_circle_outline, tooltip: 'New Cat', onTap: _showAddCategorySheet, isDark: isDark, expand: false),
+                          padding: const EdgeInsets.only(right: 8),
+                          child: _CategoryChip(
+                              label: cat,
+                              isActive: _selectedCategory == cat,
+                              onTap: () => setState(() => _selectedCategory = cat),
+                              context: context),
+                        )),
+                    _FormatIconBtn(
+                        icon: Icons.add_circle_outline,
+                        tooltip: 'New Cat',
+                        onTap: _showAddCategorySheet,
+                        isDark: isDark,
+                        expand: false),
                   ],
                 ),
               ),
@@ -728,16 +934,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   maxLines: null,
                   expands: true,
                   autofocus: _isNewNote,
-                  style: NoveTypography.editorFont(style: const TextStyle(fontSize: 18)),
-                  decoration: const InputDecoration(hintText: 'Start writing...', border: InputBorder.none),
+                  style: NoveTypography.editorFont(
+                      style: const TextStyle(fontSize: 18)),
+                  decoration: const InputDecoration(
+                      hintText: 'Start writing...', border: InputBorder.none),
                 ),
               ),
             ),
 
-            // ── Toolbar & Keyboard Spacer ───────────────────────────────
+            // ── Toolbar & Keyboard Spacer ────────────────────────────────
             if (!_focusMode)
               Container(
-                margin: EdgeInsets.only(bottom: bottomInset > 0 ? bottomInset + 8 : 16),
+                margin: EdgeInsets.only(
+                    bottom: bottomInset > 0 ? bottomInset + 8 : 0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -745,26 +954,53 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       Container(
                         margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: NoveColors.cardBg(context), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(
+                            color: NoveColors.cardBg(context),
+                            borderRadius: BorderRadius.circular(12)),
                         child: Column(
                           children: [
                             Row(children: [
-                              Expanded(child: TextField(controller: _findController, onChanged: (_) => _updateFindMatches(), decoration: const InputDecoration(hintText: 'Find...'))),
-                              IconButton(icon: const Icon(Icons.arrow_upward), onPressed: () => _navigateMatch(-1)),
-                              IconButton(icon: const Icon(Icons.arrow_downward), onPressed: () => _navigateMatch(1)),
-                              IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _showFindReplace = false)),
+                              Expanded(
+                                  child: TextField(
+                                      controller: _findController,
+                                      onChanged: (_) => _updateFindMatches(),
+                                      decoration: const InputDecoration(
+                                          hintText: 'Find...'))),
+                              IconButton(
+                                  icon: const Icon(Icons.arrow_upward),
+                                  onPressed: () => _navigateMatch(-1)),
+                              IconButton(
+                                  icon: const Icon(Icons.arrow_downward),
+                                  onPressed: () => _navigateMatch(1)),
+                              IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () => setState(
+                                      () => _showFindReplace = false)),
                             ]),
                             Row(children: [
-                              Expanded(child: TextField(controller: _replaceController, decoration: const InputDecoration(hintText: 'Replace...'))),
-                              TextButton(onPressed: _replaceCurrentMatch, child: const Text('Replace')),
-                              TextButton(onPressed: _replaceAllMatches, child: const Text('All')),
+                              Expanded(
+                                  child: TextField(
+                                      controller: _replaceController,
+                                      decoration: const InputDecoration(
+                                          hintText: 'Replace...'))),
+                              TextButton(
+                                  onPressed: _replaceCurrentMatch,
+                                  child: const Text('Replace')),
+                              TextButton(
+                                  onPressed: _replaceAllMatches,
+                                  child: const Text('All')),
                             ]),
                           ],
                         ),
                       ),
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(color: NoveColors.cardBg(context), borderRadius: BorderRadius.circular(NoveRadii.md), border: Border.all(color: NoveColors.cardBorder(context), width: 0.5)),
+                      decoration: BoxDecoration(
+                          color: NoveColors.cardBg(context),
+                          borderRadius: BorderRadius.circular(NoveRadii.md),
+                          border: Border.all(
+                              color: NoveColors.cardBorder(context),
+                              width: 0.5)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
@@ -784,12 +1020,26 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Row(
                         children: [
-                          Text('$wordCount words · $readTime min', style: NoveTypography.caption(context)),
+                          Text('$wordCount words · $readTime min',
+                              style: NoveTypography.caption(context)),
                           const Spacer(),
-                          if (_isSaved) Row(children: [Icon(Icons.check_circle, size: 12, color: NoveColors.accent(context)), const SizedBox(width: 4), Text('Saved', style: NoveTypography.caption(context).copyWith(color: NoveColors.accent(context)))]),
+                          if (_isSaved)
+                            Row(children: [
+                              Icon(Icons.check_circle,
+                                  size: 12, color: NoveColors.accent(context)),
+                              const SizedBox(width: 4),
+                              Text('Saved',
+                                  style: NoveTypography.caption(context)
+                                      .copyWith(
+                                          color: NoveColors.accent(context))),
+                            ]),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 8),
+
+                    // ── Banner Ad ────────────────────────────────────────
+                  
                   ],
                 ),
               ),
@@ -813,8 +1063,20 @@ class _CategoryChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(color: isActive ? NoveColors.accent(context) : Colors.transparent, borderRadius: BorderRadius.circular(NoveRadii.full), border: Border.all(color: isActive ? Colors.transparent : NoveColors.cardBorder(context))),
-        child: Text(label, style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w600, color: isActive ? Colors.white : NoveColors.secondaryText(context))),
+        decoration: BoxDecoration(
+            color: isActive ? NoveColors.accent(context) : Colors.transparent,
+            borderRadius: BorderRadius.circular(NoveRadii.full),
+            border: Border.all(
+                color: isActive
+                    ? Colors.transparent
+                    : NoveColors.cardBorder(context))),
+        child: Text(label,
+            style: GoogleFonts.dmSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isActive
+                    ? Colors.white
+                    : NoveColors.secondaryText(context))),
       ),
     );
   }
@@ -835,7 +1097,13 @@ class _FormatBtn extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Center(child: Text(label, style: GoogleFonts.dmSans(fontSize: 15, fontWeight: bold ? FontWeight.w700 : FontWeight.w500, fontStyle: italic ? FontStyle.italic : FontStyle.normal, color: NoveColors.secondaryText(context)))),
+          child: Center(
+              child: Text(label,
+                  style: GoogleFonts.dmSans(
+                      fontSize: 15,
+                      fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+                      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+                      color: NoveColors.secondaryText(context)))),
         ),
       ),
     );
@@ -852,7 +1120,11 @@ class _FormatIconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = GestureDetector(onTap: onTap, child: Padding(padding: const EdgeInsets.all(8), child: Icon(icon, size: 20, color: NoveColors.secondaryText(context))));
+    final child = GestureDetector(
+        onTap: onTap,
+        child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 20, color: NoveColors.secondaryText(context))));
     return expand ? Expanded(child: child) : child;
   }
 }

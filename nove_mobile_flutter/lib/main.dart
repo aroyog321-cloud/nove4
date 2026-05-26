@@ -9,24 +9,26 @@ import 'dart:ui';
 import 'dart:async';
 import 'package:timezone/data/latest.dart' as tz;
 
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'services/database_service.dart';
 import 'services/seed_service.dart';
 import 'screens/home_screen.dart';
-
 import 'screens/sticky_board_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/lock_screen.dart';
+import 'screens/privacy_policy_screen.dart';
 import 'theme/tokens.dart';
 import 'providers/sticky_notes_provider.dart';
 import 'widgets/sticky_overlay_layer.dart';
 import 'providers/app_launch_watcher.dart';
 import 'services/ads_service.dart';
 
-// ─── GLOBAL STREAM CACHES (Prevents "Bad State" Stream Errors) ─────────────
-final Stream<dynamic> sharedOverlayStream = FlutterOverlayWindow.overlayListener.asBroadcastStream();
+// ─── GLOBAL STREAM CACHES ────────────────────────────────────────────────────
+final Stream<dynamic> sharedOverlayStream =
+    FlutterOverlayWindow.overlayListener.asBroadcastStream();
 
 // ─── CUSTOM CLIPPERS & PAINTERS ─────────────────────────────────────────────
 class FoldedCornerClipper extends CustomClipper<Path> {
@@ -91,7 +93,6 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
   @override
   void initState() {
     super.initState();
-    // Listen to the global shared stream
     _overlaySubscription = sharedOverlayStream.listen((event) {
       if (event.toString().startsWith("note:")) {
         try {
@@ -109,7 +110,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
           if (_isBubble) {
             FlutterOverlayWindow.resizeOverlay(100, 100, true);
           } else {
-            FlutterOverlayWindow.resizeOverlay(_overlayWidth.toInt(), _overlayHeight.toInt(), true);
+            FlutterOverlayWindow.resizeOverlay(
+                _overlayWidth.toInt(), _overlayHeight.toInt(), true);
           }
         } catch (e) {
           debugPrint("Overlay Parse Error: $e");
@@ -141,7 +143,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
       onDoubleTap: () {
         HapticFeedback.mediumImpact();
         setState(() => _isBubble = false);
-        FlutterOverlayWindow.resizeOverlay(_overlayWidth.toInt(), _overlayHeight.toInt(), true);
+        FlutterOverlayWindow.resizeOverlay(
+            _overlayWidth.toInt(), _overlayHeight.toInt(), true);
       },
       child: Container(
         width: 58,
@@ -150,12 +153,17 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
           color: _bgColor,
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: _bgColor.withValues(alpha: 0.4), blurRadius: 15, spreadRadius: 2),
+            BoxShadow(
+                color: _bgColor.withValues(alpha: 0.4),
+                blurRadius: 15,
+                spreadRadius: 2),
           ],
-          border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
+          border:
+              Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
         ),
         child: const Center(
-          child: Icon(Icons.edit_note_rounded, color: Color(0xFF412402), size: 28),
+          child: Icon(Icons.edit_note_rounded,
+              color: Color(0xFF412402), size: 28),
         ),
       ),
     );
@@ -172,8 +180,7 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
           BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 32,
-              offset: const Offset(0, 12)
-          ),
+              offset: const Offset(0, 12)),
         ],
       ),
       child: Stack(
@@ -188,7 +195,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Padding(
-                padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 8),
+                padding: const EdgeInsets.only(
+                    left: 16, right: 16, top: 12, bottom: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -197,7 +205,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                       children: [
                         const Padding(
                           padding: EdgeInsets.only(left: 16.0),
-                          child: Icon(Icons.drag_indicator, size: 20, color: Colors.black26),
+                          child: Icon(Icons.drag_indicator,
+                              size: 20, color: Colors.black26),
                         ),
                         Row(
                           children: [
@@ -205,9 +214,11 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                               onPressed: () {
                                 HapticFeedback.lightImpact();
                                 setState(() => _isBubble = true);
-                                FlutterOverlayWindow.resizeOverlay(100, 100, true);
+                                FlutterOverlayWindow.resizeOverlay(
+                                    100, 100, true);
                               },
-                              icon: const Icon(Icons.minimize, size: 24, color: Colors.black87),
+                              icon: const Icon(Icons.minimize,
+                                  size: 24, color: Colors.black87),
                               tooltip: 'Minimize to Bubble',
                             ),
                             IconButton(
@@ -216,7 +227,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                                 FlutterOverlayWindow.shareData("restore:$_id");
                                 FlutterOverlayWindow.closeOverlay();
                               },
-                              icon: const Icon(Icons.close, size: 24, color: Colors.black87),
+                              icon: const Icon(Icons.close,
+                                  size: 24, color: Colors.black87),
                               tooltip: 'Close & Restore',
                             ),
                           ],
@@ -230,7 +242,9 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.dmSans(
-                          fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF1C1C18),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1C1C18),
                         ),
                       ),
                     const SizedBox(height: 4),
@@ -239,7 +253,9 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                         child: Text(
                           _content.isNotEmpty ? _content : ' ',
                           style: GoogleFonts.caveat(
-                            fontSize: 24, height: 1.2, color: const Color(0xCC1C1C18),
+                            fontSize: 24,
+                            height: 1.2,
+                            color: const Color(0xCC1C1C18),
                           ),
                         ),
                       ),
@@ -247,7 +263,10 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                     Container(
                         padding: const EdgeInsets.only(top: 8),
                         decoration: BoxDecoration(
-                          border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.05))),
+                          border: Border(
+                              top: BorderSide(
+                                  color:
+                                      Colors.black.withValues(alpha: 0.05))),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
@@ -255,22 +274,31 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                             GestureDetector(
                               onPanUpdate: (details) {
                                 setState(() {
-                                  _overlayWidth = (_overlayWidth + details.delta.dx).clamp(160.0, 600.0);
-                                  _overlayHeight = (_overlayHeight + details.delta.dy).clamp(160.0, 800.0);
+                                  _overlayWidth = (_overlayWidth +
+                                          details.delta.dx)
+                                      .clamp(160.0, 600.0);
+                                  _overlayHeight = (_overlayHeight +
+                                          details.delta.dy)
+                                      .clamp(160.0, 800.0);
                                 });
-                                FlutterOverlayWindow.resizeOverlay(_overlayWidth.toInt(), _overlayHeight.toInt(), true);
+                                FlutterOverlayWindow.resizeOverlay(
+                                    _overlayWidth.toInt(),
+                                    _overlayHeight.toInt(),
+                                    true);
                               },
                               child: const Padding(
                                 padding: EdgeInsets.all(4.0),
                                 child: RotatedBox(
                                   quarterTurns: 1,
-                                  child: Icon(Icons.drag_indicator_rounded, size: 20, color: Colors.black26),
+                                  child: Icon(
+                                      Icons.drag_indicator_rounded,
+                                      size: 20,
+                                      color: Colors.black26),
                                 ),
                               ),
                             )
                           ],
-                        )
-                    )
+                        ))
                   ],
                 ),
               ),
@@ -294,8 +322,7 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
                       blurRadius: 4,
                       offset: const Offset(2, 2),
                     )
-                  ]
-              ),
+                  ]),
             ),
           ),
         ],
@@ -305,7 +332,8 @@ class _OSFloatingCompanionState extends State<OSFloatingCompanion> {
 }
 
 // ─── Theme Mode Provider ──────────────────────────────────────────────────────
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
   return ThemeModeNotifier();
 });
 
@@ -317,16 +345,14 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('theme_mode');
-
     if (saved == null) {
-      // First install: default to Light as requested
       state = ThemeMode.light;
     } else {
       state = saved == 'dark'
           ? ThemeMode.dark
           : saved == 'light'
-          ? ThemeMode.light
-          : ThemeMode.system;
+              ? ThemeMode.light
+              : ThemeMode.system;
     }
   }
 
@@ -336,8 +362,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     final str = mode == ThemeMode.dark
         ? 'dark'
         : mode == ThemeMode.light
-        ? 'light'
-        : 'system';
+            ? 'light'
+            : 'system';
     await prefs.setString('theme_mode', str);
   }
 }
@@ -346,33 +372,32 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize notifications & timezone
   tz.initializeTimeZones();
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings =
+      InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
   try {
     await DatabaseService.init();
-    await SeedService.seedIfNeeded(); // Insert default content on first install
+    await SeedService.seedIfNeeded();
   } catch (e, st) {
     debugPrint('NOVE: Failed to initialize database: $e\n$st');
-    // Continue — app will show empty state rather than crashing
   }
 
-  // ── Unity Ads ─────────────────────────────────────────────────────────────
   await AdsService.initialize();
-  // loadInterstitial() and loadRewarded() are called inside onComplete
-  // ──────────────────────────────────────────────────────────────────────────
 
   runApp(const ProviderScope(child: NoveApp()));
 }
 
+// ─── Root App ─────────────────────────────────────────────────────────────────
 class NoveApp extends ConsumerWidget {
   const NoveApp({super.key});
 
@@ -386,7 +411,8 @@ class NoveApp extends ConsumerWidget {
       themeMode: themeMode,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
-      home: const _AppEntry(),
+      // ── Terms gate wraps the entire entry ──────────────────────────────────
+      home: const _TermsGate(),
     );
   }
 
@@ -418,7 +444,8 @@ class NoveApp extends ConsumerWidget {
         backgroundColor: NoveColors.terracotta,
         foregroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -430,7 +457,8 @@ class NoveApp extends ConsumerWidget {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: NoveColors.warmWhite,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: NoveColors.warmGray900,
@@ -471,7 +499,8 @@ class NoveApp extends ConsumerWidget {
         backgroundColor: NoveColors.terracottaLight,
         foregroundColor: Colors.white,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -483,15 +512,61 @@ class NoveApp extends ConsumerWidget {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: NoveColors.cardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: NoveColors.warmGray200,
-        contentTextStyle: GoogleFonts.dmSans(color: NoveColors.warmGray900),
+        contentTextStyle:
+            GoogleFonts.dmSans(color: NoveColors.warmGray900),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+}
+
+// ─── Terms Gate — shows Privacy Policy only on first install ─────────────────
+class _TermsGate extends StatefulWidget {
+  const _TermsGate();
+
+  @override
+  State<_TermsGate> createState() => _TermsGateState();
+}
+
+class _TermsGateState extends State<_TermsGate> {
+  bool? _accepted;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accepted = prefs.getBool('terms_accepted') ?? false;
+    setState(() => _accepted = accepted);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Loading
+    if (_accepted == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Not accepted yet — show Privacy Policy & Terms
+    if (!_accepted!) {
+      return PrivacyPolicyScreen(
+        onAccepted: () => setState(() => _accepted = true),
+      );
+    }
+
+    // Accepted — show normal app entry
+    return const _AppEntry();
   }
 }
 
@@ -544,7 +619,8 @@ class _AppEntryState extends State<_AppEntry> with WidgetsBindingObserver {
           await prefs.setBool('onboarding_done', true);
           if (!context.mounted) return;
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const LockScreen(child: NoveShell())),
+            MaterialPageRoute(
+                builder: (_) => const LockScreen(child: NoveShell())),
           );
         },
       );
@@ -561,7 +637,8 @@ class NoveShell extends ConsumerStatefulWidget {
   ConsumerState<NoveShell> createState() => _NoveShellState();
 }
 
-class _NoveShellState extends ConsumerState<NoveShell> with WidgetsBindingObserver {
+class _NoveShellState extends ConsumerState<NoveShell>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   static const _screens = [
@@ -577,7 +654,6 @@ class _NoveShellState extends ConsumerState<NoveShell> with WidgetsBindingObserv
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Listen to the global shared stream
     _overlaySubscription = sharedOverlayStream.listen((event) {
       if (event.toString().startsWith("restore:")) {
         if (mounted) {
@@ -610,7 +686,6 @@ class _NoveShellState extends ConsumerState<NoveShell> with WidgetsBindingObserv
   @override
   void didChangePlatformBrightness() {
     super.didChangePlatformBrightness();
-    // Force a rebuild when the system theme changes
     if (ref.read(themeModeProvider) == ThemeMode.system) {
       setState(() {});
     }
@@ -662,9 +737,18 @@ class _NoveTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _TabItem(icon: Icons.description_outlined, activeIcon: Icons.description, label: 'Notes'),
-      _TabItem(icon: Icons.dashboard_outlined, activeIcon: Icons.dashboard, label: 'Board'),
-      _TabItem(icon: Icons.settings_outlined, activeIcon: Icons.settings, label: 'Settings'),
+      _TabItem(
+          icon: Icons.description_outlined,
+          activeIcon: Icons.description,
+          label: 'Notes'),
+      _TabItem(
+          icon: Icons.dashboard_outlined,
+          activeIcon: Icons.dashboard,
+          label: 'Board'),
+      _TabItem(
+          icon: Icons.settings_outlined,
+          activeIcon: Icons.settings,
+          label: 'Settings'),
     ];
 
     final bgColor = isDark
@@ -673,7 +757,7 @@ class _NoveTabBar extends StatelessWidget {
     final borderColor = isDark
         ? NoveColors.warmGray800.withValues(alpha: 0.5)
         : NoveColors.warmGray200.withValues(alpha: 0.5);
-    final inactiveColor = isDark ? NoveColors.warmGray500 : NoveColors.warmGray500;
+    final inactiveColor = NoveColors.warmGray500;
 
     return Padding(
       padding: const EdgeInsets.only(left: 16, right: 16, bottom: 24),
@@ -698,7 +782,8 @@ class _NoveTabBar extends StatelessWidget {
               top: false,
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: List.generate(items.length, (i) {
@@ -718,10 +803,14 @@ class _NoveTabBar extends StatelessWidget {
                           behavior: HitTestBehavior.opaque,
                           child: AnimatedContainer(
                             duration: NoveAnimation.fast,
-                            margin: const EdgeInsets.symmetric(horizontal: 2),
-                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                            margin:
+                                const EdgeInsets.symmetric(horizontal: 2),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 10, horizontal: 8),
                             decoration: BoxDecoration(
-                              color: isActive ? NoveColors.terracotta : Colors.transparent,
+                              color: isActive
+                                  ? NoveColors.terracotta
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(24),
                             ),
                             child: Row(
@@ -730,7 +819,9 @@ class _NoveTabBar extends StatelessWidget {
                               children: [
                                 Icon(
                                   isActive ? item.activeIcon : item.icon,
-                                  color: isActive ? Colors.white : inactiveColor,
+                                  color: isActive
+                                      ? Colors.white
+                                      : inactiveColor,
                                   size: 20,
                                 ),
                                 if (isActive) ...[
@@ -765,5 +856,6 @@ class _TabItem {
   final IconData icon;
   final IconData activeIcon;
   final String label;
-  const _TabItem({required this.icon, required this.activeIcon, required this.label});
+  const _TabItem(
+      {required this.icon, required this.activeIcon, required this.label});
 }

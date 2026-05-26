@@ -3,7 +3,6 @@ package com.anonymous.nove_mobile_flutter
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ResolveInfo
-import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -13,34 +12,55 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterFragmentActivity() {
 
-    private val METHOD_CHANNEL     = "com.nove.app_link"
-    private val EVENT_CHANNEL      = "com.nove.app_launch_events"
-    private val ADS_METHOD_CHANNEL = "com.nove.ads"
+    companion object {
+        private const val METHOD_CHANNEL     = "com.nove.app_link"
+        private const val EVENT_CHANNEL      = "com.nove.app_launch_events"
+        private const val ADS_METHOD_CHANNEL = "com.nove.ads"
+    }
 
-    private var bannerShownThisSession = false
+    private val bannerAd by lazy { InAppAdsBanner(this) }
+
+    override fun onResume() {
+        super.onResume()
+        // Start 5-minute repeating banner when app is in foreground
+        bannerAd.startRepeating()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Stop banner timer when app goes to background
+        bannerAd.stopRepeating()
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // ── App launch event stream ────────────────────────────────────────────
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL)
-            .setStreamHandler(AppLaunchStreamHandler)
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            EVENT_CHANNEL
+        ).setStreamHandler(AppLaunchStreamHandler)
 
-        // ── App-link / accessibility method channel ────────────────────────────
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "isAccessibilityEnabled" -> {
-                        result.success(checkAccessibilityEnabled(this@MainActivity))
-                    }
-                    "openAccessibilitySettings" -> {
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            METHOD_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "isAccessibilityEnabled" -> {
+                    result.success(checkAccessibilityEnabled(this))
+                }
+                "openAccessibilitySettings" -> {
+                    try {
                         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        this@MainActivity.startActivity(intent)
-                        result.success(null)
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("ACCESSIBILITY_ERROR", e.message, null)
                     }
-                    "getInstalledApps" -> {
-                        val pm = this@MainActivity.packageManager
+                }
+                "getInstalledApps" -> {
+                    try {
+                        val pm = packageManager
                         val intent = Intent(Intent.ACTION_MAIN, null)
                         intent.addCategory(Intent.CATEGORY_LAUNCHER)
                         val apps: List<ResolveInfo> = pm.queryIntentActivities(intent, 0)
@@ -52,79 +72,71 @@ class MainActivity : FlutterFragmentActivity() {
                             appList.add(map)
                         }
                         result.success(appList)
+                    } catch (e: Exception) {
+                        result.error("APP_LIST_ERROR", e.message, null)
                     }
-                    "syncLinks" -> {
+                }
+                "syncLinks" -> {
+                    try {
                         @Suppress("UNCHECKED_CAST")
                         val links = call.arguments as? Map<String, String>
                         if (links != null) {
-                            val prefs = this@MainActivity
-                                .getSharedPreferences("nove_links", Context.MODE_PRIVATE)
+                            val prefs = getSharedPreferences(
+                                "nove_links", Context.MODE_PRIVATE
+                            )
                             val editor = prefs.edit()
                             editor.clear()
                             for ((pkg, id) in links) editor.putString(pkg, id)
                             editor.apply()
                         }
-                        result.success(null)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SYNC_ERROR", e.message, null)
                     }
-                    else -> result.notImplemented()
                 }
+                else -> result.notImplemented()
             }
+        }
 
-        // ── AdMaven ads method channel ─────────────────────────────────────────
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ADS_METHOD_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "showInterstitial" -> {
-                        InAppAdsInterstitial(this@MainActivity).show(
-                            onDismiss = { result.success(null) }
-                        )
-                    }
-                    else -> result.notImplemented()
+        // ── AdMaven interstitial — auto-opens 1 sec after note save ───────────
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ADS_METHOD_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "showInterstitial" -> {
+                    InAppAdsInterstitial(this@MainActivity).show(
+                        onDismiss = { result.success(null) }
+                    )
                 }
+                else -> result.notImplemented()
             }
-    }
-
-    // ── Show banner ad once on first resume after launch ──────────────────────
-    // onResume is called after the activity is fully visible and the Flutter
-    // engine is ready — safe to add views to the window here.
-    override fun onResume() {
-        super.onResume()
-        if (!bannerShownThisSession) {
-            bannerShownThisSession = true
-            // Small delay to let Flutter finish its first frame render
-            window.decorView.postDelayed({
-                InAppAdsBanner(this@MainActivity).show()
-            }, 1500)
         }
     }
 
     private fun checkAccessibilityEnabled(context: Context): Boolean {
-        var accessibilityEnabled = 0
-        val service =
-            packageName + "/" + NoveAccessibilityService::class.java.canonicalName
-        try {
-            accessibilityEnabled = Settings.Secure.getInt(
-                context.applicationContext.contentResolver,
+        val service = packageName + "/" + NoveAccessibilityService::class.java.canonicalName
+        return try {
+            val accessibilityEnabled = Settings.Secure.getInt(
+                context.contentResolver,
                 Settings.Secure.ACCESSIBILITY_ENABLED
             )
-        } catch (e: Settings.SettingNotFoundException) {
-            return false
-        }
-        val mStringColonSplitter = TextUtils.SimpleStringSplitter(':')
-        if (accessibilityEnabled == 1) {
-            val settingValue = Settings.Secure.getString(
-                context.applicationContext.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-            )
-            if (settingValue != null) {
-                mStringColonSplitter.setString(settingValue)
-                while (mStringColonSplitter.hasNext()) {
-                    if (mStringColonSplitter.next().equals(service, ignoreCase = true)) {
-                        return true
+            if (accessibilityEnabled == 1) {
+                val settingValue = Settings.Secure.getString(
+                    context.contentResolver,
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                )
+                if (settingValue != null) {
+                    val splitter = TextUtils.SimpleStringSplitter(':')
+                    splitter.setString(settingValue)
+                    while (splitter.hasNext()) {
+                        if (splitter.next().equals(service, ignoreCase = true)) return true
                     }
                 }
             }
+            false
+        } catch (e: Exception) {
+            false
         }
-        return false
     }
 }
