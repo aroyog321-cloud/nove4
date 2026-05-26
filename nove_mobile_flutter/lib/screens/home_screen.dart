@@ -13,7 +13,6 @@ import '../services/category_service.dart';
 import '../services/stats_service.dart';
 import '../theme/tokens.dart';
 import 'editor_screen.dart';
-import '../services/ads_service.dart';
 
 enum _SortOrder { updatedDesc, updatedAsc, titleAsc, titleDesc, wordCountDesc }
 
@@ -626,9 +625,8 @@ class _NoteCardState extends State<NoteCard> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(NoveRadii.xl - 1),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (!widget.isSelected)
                     Container(
@@ -641,7 +639,6 @@ class _NoteCardState extends State<NoteCard> {
                           widget.isSelected ? 20 : 17, 20, 20, 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -717,7 +714,6 @@ class _NoteCardState extends State<NoteCard> {
                     ),
                   ),
                 ],
-              ),
             ),
           ),
         ),

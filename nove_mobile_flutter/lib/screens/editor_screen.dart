@@ -722,7 +722,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   // ── Banner Ad Widget ────────────────────────────────────────────────────────
  Widget _buildBannerAd(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final bgColor = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
   final textColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70);
   final accentColor = isDark ? const Color(0xFF6C63FF) : const Color(0xFF3B82F6);
 
@@ -742,7 +741,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         ),
         border: Border(
           top: BorderSide(
-            color: accentColor.withOpacity(0.3),
+            color: accentColor.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -821,7 +820,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: accentColor.withOpacity(0.4),
+                  color: accentColor.withValues(alpha: 0.4),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),

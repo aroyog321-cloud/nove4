@@ -71,6 +71,6 @@ flutter {
 }
 
 dependencies {
+    // Only AdMaven HTTP-based ads — no SDK needed
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
-    implementation("com.unity3d.ads:unity-ads:4.12.4")
 }

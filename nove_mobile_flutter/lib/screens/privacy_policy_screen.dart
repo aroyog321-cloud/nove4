@@ -331,7 +331,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
                             horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
                           color: _acknowledged
-                              ? accent.withOpacity(0.08)
+                              ? accent.withValues(alpha: 0.08)
                               : cardBg,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
@@ -406,7 +406,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
                             boxShadow: _acknowledged
                                 ? [
                                     BoxShadow(
-                                      color: accent.withOpacity(0.35),
+                                      color: accent.withValues(alpha: 0.35),
                                       blurRadius: 16,
                                       offset: const Offset(0, 4),
                                     )
@@ -497,9 +497,9 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen>
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: accent.withOpacity(0.08),
+          color: accent.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: accent.withOpacity(0.3), width: 1),
+          border: Border.all(color: accent.withValues(alpha: 0.3), width: 1),
         ),
         child: Text(text,
             style: GoogleFonts.dmSans(
